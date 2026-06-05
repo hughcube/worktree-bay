@@ -1,0 +1,15 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'
+import type { BayConfig } from '../src/config.js'
+import { complete } from '../src/commands/completion.js'
+import { claim } from '../src/slots.js'
+
+let ws: string; let cfg: BayConfig
+beforeEach(() => { ws = fs.mkdtempSync(path.join(os.tmpdir(), 'baycomp-')); fs.mkdirSync(path.join(ws, 'api')); cfg = { workspaceRoot: ws, portBase: 6000, slotSpan: 10, maxSlots: 9, configDir: ws, services: { api: { offset: 1 }, lms: { offset: 2 } } }; claim(cfg, 'drill') })
+afterEach(() => fs.rmSync(ws, { recursive: true, force: true }))
+
+describe('completion', () => {
+  it('第一参补子命令', () => expect(complete(cfg, ['bay'])).toContain('add'))
+  it('add 第二参补 feature', () => expect(complete(cfg, ['bay', 'add'])).toContain('drill'))
+  it('add 第三参补 service', () => expect(complete(cfg, ['bay', 'add', 'drill'])).toEqual(expect.arrayContaining(['api', 'lms'])))
+})
