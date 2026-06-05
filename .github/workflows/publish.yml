@@ -58,7 +58,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin master
-          git checkout -B master FETCH_HEAD
+          git checkout -f -B master FETCH_HEAD   # -f 丢弃 Set-version 留下的未提交 package.json 改动，下面再重设
           npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
           git add package.json
           git diff --staged --quiet || git commit -m "chore: release ${GITHUB_REF_NAME}"
