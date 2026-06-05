@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # 跳过破坏性大版本（避免自动 PR 改坏构建/测试，手动按需升级）
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
