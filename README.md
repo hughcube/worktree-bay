@@ -27,12 +27,8 @@ npm i -g worktree-bay
 ## 快速上手
 
 ```bash
-# 占一个槽位
-worktree-bay claim drill-fix          # → 槽 1，端口块 6010
-
-# 把服务挂进这个功能的槽（开 worktree + 跑该服务的步骤）
-worktree-bay add drill-fix api    feature/drill-fix      # api 起在 6011
-worktree-bay add drill-fix lms    feature/drill-ui       # 前端自动接 6011
+# 一条命令起整个功能：自动占槽 + 在 api/lms 上开 worktree（分支默认 = 功能名）
+worktree-bay up drill-fix api lms
 
 # 看占用
 worktree-bay ls
@@ -40,10 +36,14 @@ worktree-bay ls
 # 在服务运行体里跑命令（透传）
 worktree-bay run drill-fix api test
 
-# 收尾
-worktree-bay rm drill-fix          # 整槽拆除（默认查脏/未推保护，-f 强删）
-worktree-bay gc                    # 合并感知回收（默认 dry-run，--apply 实际执行）
+# 拆除整个功能（默认查脏/未推保护，-f 强删）
+worktree-bay down drill-fix
+
+# 回收已合并的（默认 dry-run，--apply 实际执行）
+worktree-bay gc
 ```
+
+> 需要更细的控制：`claim <feature>` 单独占槽、`add <feature> <service> [branch]` 单加一个服务（branch 可自定义，省略则用功能名）、`rm <feature> [service]` 拆单个服务。
 
 ## 配置
 
@@ -106,9 +106,13 @@ worktree-bay gc                    # 合并感知回收（默认 dry-run，--app
 
 ## Shell 补全
 
+一条命令装好（自动探测 shell、幂等写入对应 rc；fish 直接写补全目录）：
+
 ```bash
-worktree-bay completion bash >> ~/.bashrc      # 或 zsh / fish
+worktree-bay completion install
 ```
+
+执行 `source ~/.bashrc`（或重开终端）即可 tab 补全子命令、功能名、服务名。也可手动：`worktree-bay completion bash`（打印脚本，自行接入）。
 
 ## 许可证
 

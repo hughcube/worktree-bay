@@ -4,11 +4,11 @@ import { Command } from 'commander'
 import { loadConfig, BayConfig } from './config.js'
 import { claimCommand } from './commands/claim.js'
 import { lsCommand } from './commands/ls.js'
-import { addCommand } from './commands/add.js'
+import { addCommand, upCommand } from './commands/add.js'
 import { runCommand, shCommand } from './commands/passthrough.js'
 import { rmCommand } from './commands/rm.js'
 import { gcCommand } from './commands/gc.js'
-import { complete, completionCommand } from './commands/completion.js'
+import { complete, completionCommand, installCompletion } from './commands/completion.js'
 import { die } from './util/log.js'
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
@@ -20,18 +20,22 @@ program.command('claim <feature>').description('为功能占一个槽位（端�
   .action(async (f) => { try { await claimCommand(loadConfig(process.cwd()), f) } catch (e) { die((e as Error).message) } })
 program.command('ls').description('列出所有槽位与占用状态')
   .action(() => sync(lsCommand))
-program.command('add <feature> <service> <branch> [base]').description('在某服务为功能开 worktree 并挂入其槽位')
+program.command('up <feature> <services...>').description('一条命令为功能起多个服务（自动 claim + 各服务默认分支 = 功能名）')
+  .action(async (f, services) => { try { await upCommand(loadConfig(process.cwd()), f, services) } catch (e) { die((e as Error).message) } })
+program.command('add <feature> <service> [branch] [base]').description('为功能在某服务开 worktree（branch 默认 = 功能名）')
   .action(async (f, s, b, base) => { try { await addCommand(loadConfig(process.cwd()), f, s, b, base) } catch (e) { die((e as Error).message) } })
 program.command('run <feature> <service> <name> [args...]').description('在服务运行体里跑 run.<name> 命令（透传 args）')
   .action((f, s, n, args) => sync((c) => runCommand(c, f, s, n, args ?? [])))
 program.command('sh <feature> <service>').description('进入服务运行体的 shell')
   .action((f, s) => sync((c) => shCommand(c, f, s)))
+program.command('down <feature>').description('拆除整个功能的所有服务 worktree（= rm <feature>）').option('-f, --force', '跳过脏/未推检查强制删除')
+  .action(async (f, o) => { try { await rmCommand(loadConfig(process.cwd()), f, undefined, !!o.force) } catch (e) { die((e as Error).message) } })
 program.command('rm <feature> [service]').description('拆除某服务或整槽的 worktree（默认查脏/未推保护）').option('-f, --force', '跳过脏/未推检查强制删除')
   .action(async (f, s, o) => { try { await rmCommand(loadConfig(process.cwd()), f, s, !!o.force) } catch (e) { die((e as Error).message) } })
 program.command('gc').description('合并感知回收（默认 dry-run）').option('--apply', '实际执行回收')
   .action(async (o) => { try { await gcCommand(loadConfig(process.cwd()), !!o.apply) } catch (e) { die((e as Error).message) } })
-program.command('completion <shell>').description('打印 shell 补全脚本（bash|zsh|fish）')
-  .action((sh) => { try { completionCommand(sh) } catch (e) { die((e as Error).message) } })
+program.command('completion <target> [shell]').description('install 一键装进 shell；或 bash|zsh|fish 打印补全脚本')
+  .action((target, shell) => { try { if (target === 'install') installCompletion(shell); else completionCommand(target) } catch (e) { die((e as Error).message) } })
 program.command('__complete', { hidden: true }).allowUnknownOption().action(() => {
   const words = process.argv.slice(process.argv.indexOf('--') + 1)
   try { console.log(complete(loadConfig(process.cwd()), words).join('\n')) } catch { /* 静默 */ }

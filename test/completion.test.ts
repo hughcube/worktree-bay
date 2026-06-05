@@ -9,7 +9,10 @@ beforeEach(() => { ws = fs.mkdtempSync(path.join(os.tmpdir(), 'baycomp-')); fs.m
 afterEach(() => fs.rmSync(ws, { recursive: true, force: true }))
 
 describe('completion', () => {
-  it('第一参补子命令', () => expect(complete(cfg, ['bay'])).toContain('add'))
+  it('第一参补子命令（含 up/down）', () => { const s = complete(cfg, ['bay']); expect(s).toContain('add'); expect(s).toContain('up'); expect(s).toContain('down') })
   it('add 第二参补 feature', () => expect(complete(cfg, ['bay', 'add'])).toContain('drill'))
   it('add 第三参补 service', () => expect(complete(cfg, ['bay', 'add', 'drill'])).toEqual(expect.arrayContaining(['api', 'lms'])))
+  it('up 第二参补 feature', () => expect(complete(cfg, ['bay', 'up'])).toContain('drill'))
+  it('up 变长参补 service', () => { expect(complete(cfg, ['bay', 'up', 'drill'])).toEqual(expect.arrayContaining(['api', 'lms'])); expect(complete(cfg, ['bay', 'up', 'drill', 'api'])).toEqual(expect.arrayContaining(['api', 'lms'])) })
+  it('down 第二参补 feature', () => expect(complete(cfg, ['bay', 'down'])).toContain('drill'))
 })
