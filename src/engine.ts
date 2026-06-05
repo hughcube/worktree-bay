@@ -33,7 +33,8 @@ export async function bringUp(ctx: AddCtx, base: string, branch: string): Promis
   if (!(await isPortFree(Number(vars.port)))) throw new Error(`port ${vars.port} 被占用（Codex#11）`)
   addWorktree(repo, dir, branch, base)
   for (const rel of sp.copy ?? []) {
-    fs.cpSync(path.join(repo, rel), path.join(dir, rel), { recursive: true })
+    // dereference: vendor/node_modules 含符号链接，Windows 下原样复制符号链接会失败，跟随并拷目标内容
+    fs.cpSync(path.join(repo, rel), path.join(dir, rel), { recursive: true, dereference: true })
     for (const lock of ['composer.lock', 'pnpm-lock.yaml', 'package-lock.json']) {
       const a = path.join(repo, lock), b = path.join(dir, lock)
       if (fs.existsSync(a) && fs.existsSync(b) && fs.readFileSync(a, 'utf8') !== fs.readFileSync(b, 'utf8')) warn(`⚠ ${lock} 与主 checkout 不一致，拷来依赖可能版本错位，建议改跑安装（Codex#18）`)
