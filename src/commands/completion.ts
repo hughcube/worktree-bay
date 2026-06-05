@@ -12,9 +12,9 @@ export function complete(cfg: BayConfig, words: string[]): string[] {
   return []
 }
 export function completionScript(shell: string): string {
-  if (shell === 'bash') return `_bay(){ COMPREPLY=( $(bay __complete -- "\${COMP_WORDS[@]}") ); }\ncomplete -F _bay bay`
-  if (shell === 'zsh') return `#compdef bay\n_bay(){ compadd -- $(bay __complete -- "\${words[@]}") }\ncompdef _bay bay`
-  if (shell === 'fish') return `complete -c bay -a '(bay __complete -- (commandline -opc))'`
+  if (shell === 'bash') return `_worktree_bay(){ COMPREPLY=( $(worktree-bay __complete -- "\${COMP_WORDS[@]}") ); }\ncomplete -F _worktree_bay worktree-bay`
+  if (shell === 'zsh') return `#compdef worktree-bay\n_worktree_bay(){ compadd -- $(worktree-bay __complete -- "\${words[@]}") }\ncompdef _worktree_bay worktree-bay`
+  if (shell === 'fish') return `complete -c worktree-bay -a '(worktree-bay __complete -- (commandline -opc))'`
   throw new Error('unsupported shell: ' + shell)
 }
 export function completionCommand(shell: string) { log(completionScript(shell)) }

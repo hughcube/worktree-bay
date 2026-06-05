@@ -16,7 +16,7 @@ export function scanOccupancy(cfg: BayConfig): Map<number, Occupant[]> {
   }
   return map
 }
-function labelPath(cfg: BayConfig) { return path.join(cfg.workspaceRoot, '.bay-slots.json') }
+function labelPath(cfg: BayConfig) { return path.join(cfg.workspaceRoot, '.worktree-bay-slots.json') }
 export function readLabels(cfg: BayConfig): Record<string, string> { const p = labelPath(cfg); return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : {} }
 function save(cfg: BayConfig, l: Record<string, string>) { fs.writeFileSync(labelPath(cfg), JSON.stringify(l, null, 2) + '\n') }
 export function writeLabel(cfg: BayConfig, slot: number, f: string) { const l = readLabels(cfg); l[String(slot)] = f; save(cfg, l) }

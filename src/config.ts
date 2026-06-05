@@ -26,9 +26,9 @@ export function parseConfig(configPath: string): BayConfig {
 }
 
 export function loadConfig(startDir: string): BayConfig {
-  if (process.env.BAY_CONFIG) return parseConfig(process.env.BAY_CONFIG)
+  if (process.env.WORKTREE_BAY_CONFIG) return parseConfig(process.env.WORKTREE_BAY_CONFIG)
   let dir = path.resolve(startDir)
-  for (;;) { const p = path.join(dir, 'bay.config.json'); if (fs.existsSync(p)) return parseConfig(p); const parent = path.dirname(dir); if (parent === dir) throw new Error('bay.config.json not found'); dir = parent }
+  for (;;) { const p = path.join(dir, 'worktree-bay.config.json'); if (fs.existsSync(p)) return parseConfig(p); const parent = path.dirname(dir); if (parent === dir) throw new Error('worktree-bay.config.json not found'); dir = parent }
 }
 
 export function repoPath(cfg: BayConfig, service: string): string {

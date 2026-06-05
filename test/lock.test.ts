@@ -13,5 +13,5 @@ describe('lock', () => {
     await Promise.all([job(1), job(2)])
     expect(order[0]).toBe(order[1]); expect(order[2]).toBe(order[3])
   })
-  it('释放后锁目录删除', async () => { await withLock(ws, async () => {}); expect(fs.existsSync(path.join(ws, '.bay', 'lock'))).toBe(false) })
+  it('释放后锁目录删除', async () => { await withLock(ws, async () => {}); expect(fs.existsSync(path.join(ws, '.worktree-bay', 'lock'))).toBe(false) })
 })

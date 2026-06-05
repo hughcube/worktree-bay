@@ -3,7 +3,7 @@ import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'
 import { parseConfig, loadConfig, repoPath, renderTemplate } from '../src/config.js'
 
 let dir: string
-function write(cfg: any) { const p = path.join(dir, 'bay.config.json'); fs.writeFileSync(p, JSON.stringify(cfg)); return p }
+function write(cfg: any) { const p = path.join(dir, 'worktree-bay.config.json'); fs.writeFileSync(p, JSON.stringify(cfg)); return p }
 beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'baycfg-')); fs.mkdirSync(path.join(dir, 'api')); fs.mkdirSync(path.join(dir, 'lms')) })
 afterEach(() => fs.rmSync(dir, { recursive: true, force: true }))
 const VALID = () => ({
@@ -28,10 +28,10 @@ describe('config', () => {
     expect(() => parseConfig(write(v))).not.toThrow()
   })
   it('loadConfig 自下而上找到配置', () => {
-    fs.writeFileSync(path.join(dir, 'bay.config.json'), JSON.stringify(VALID()))
+    fs.writeFileSync(path.join(dir, 'worktree-bay.config.json'), JSON.stringify(VALID()))
     const sub = path.join(dir, 'a', 'b'); fs.mkdirSync(sub, { recursive: true })
-    // loadConfig 优先 BAY_CONFIG 环境变量，测试时确保未设
-    const saved = process.env.BAY_CONFIG; delete process.env.BAY_CONFIG
-    try { expect(loadConfig(sub).portBase).toBe(6000) } finally { if (saved !== undefined) process.env.BAY_CONFIG = saved }
+    // loadConfig 优先 WORKTREE_BAY_CONFIG 环境变量，测试时确保未设
+    const saved = process.env.WORKTREE_BAY_CONFIG; delete process.env.WORKTREE_BAY_CONFIG
+    try { expect(loadConfig(sub).portBase).toBe(6000) } finally { if (saved !== undefined) process.env.WORKTREE_BAY_CONFIG = saved }
   })
 })
