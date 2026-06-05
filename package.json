@@ -43,9 +43,7 @@
     "registry": "https://registry.npmjs.org"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "commander": "^12.1.0",
-    "zod": "^3.23.8"
+    "commander": "^12.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

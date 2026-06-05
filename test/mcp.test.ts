@@ -1,14 +1,32 @@
 import { describe, it, expect } from 'vitest'
-import { INSTRUCTIONS, createServer } from '../src/mcp.js'
+import { INSTRUCTIONS, TOOLS, handle } from '../src/mcp.js'
 
-describe('mcp', () => {
-  it('INSTRUCTIONS 覆盖核心工作流工具', () => {
-    for (const t of ['worktree_bay_up', 'worktree_bay_ls', 'worktree_bay_run', 'worktree_bay_down', 'worktree_bay_gc']) {
-      expect(INSTRUCTIONS).toContain(t)
-    }
+describe('mcp (lightweight stdio JSON-RPC)', () => {
+  it('initialize 返回协议版本 + serverInfo + instructions', () => {
+    const r = handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }) as any
+    expect(r.result.protocolVersion).toBeTruthy()
+    expect(r.result.serverInfo.name).toBe('worktree-bay')
+    expect(r.result.instructions).toContain('worktree_bay_up')
     expect(INSTRUCTIONS.length).toBeGreaterThan(100)
   })
-  it('createServer 注册工具不抛错', () => {
-    expect(() => createServer()).not.toThrow()
+  it('tools/list 返回 6 个工具', () => {
+    const r = handle({ id: 2, method: 'tools/list' }) as any
+    expect(r.result.tools.map((t: any) => t.name)).toEqual([
+      'worktree_bay_ls', 'worktree_bay_up', 'worktree_bay_add', 'worktree_bay_run', 'worktree_bay_down', 'worktree_bay_gc',
+    ])
+  })
+  it('tools/call 未知工具返回错误', () => {
+    const r = handle({ id: 3, method: 'tools/call', params: { name: 'nope' } }) as any
+    expect(r.error.message).toContain('nope')
+  })
+  it('toArgs 拼出正确的 CLI 参数', () => {
+    expect(TOOLS.find((t) => t.name === 'worktree_bay_up')!.toArgs({ feature: 'f', services: ['api', 'lms'] })).toEqual(['up', 'f', 'api', 'lms'])
+    expect(TOOLS.find((t) => t.name === 'worktree_bay_gc')!.toArgs({ apply: true })).toEqual(['gc', '--apply'])
+    expect(TOOLS.find((t) => t.name === 'worktree_bay_down')!.toArgs({ feature: 'f', force: true })).toEqual(['down', 'f', '-f'])
+  })
+  it('notifications 不回响应；未知方法回 method not found', () => {
+    expect(handle({ method: 'notifications/initialized' })).toBeNull()
+    const r = handle({ id: 9, method: 'bogus' }) as any
+    expect(r.error.code).toBe(-32601)
   })
 })
