@@ -114,6 +114,22 @@ worktree-bay completion install
 
 执行 `source ~/.bashrc`（或重开终端）即可 tab 补全子命令、功能名、服务名。也可手动：`worktree-bay completion bash`（打印脚本，自行接入）。
 
+## MCP（让 AI 直接用）
+
+内置一个 MCP 服务，让 AI（Claude Code 等）通过 MCP 调用 worktree-bay 完成并行开发，并内置工作流指导（告诉 AI 何时用 up/ls/run/down/gc）。
+
+启动：`worktree-bay mcp`（stdio）。在 Claude Code 里注册：
+
+```json
+{
+  "mcpServers": {
+    "worktree-bay": { "command": "worktree-bay", "args": ["mcp"] }
+  }
+}
+```
+
+> 服务在哪个工作区目录启动，就用哪个目录的 `worktree-bay.config.json`（或设 `WORKTREE_BAY_CONFIG`）。暴露的工具：`worktree_bay_up / ls / add / run / down / gc`。
+
 ## 许可证
 
 [MIT](./LICENSE)

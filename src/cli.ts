@@ -9,6 +9,7 @@ import { runCommand, shCommand } from './commands/passthrough.js'
 import { rmCommand } from './commands/rm.js'
 import { gcCommand } from './commands/gc.js'
 import { complete, completionCommand, installCompletion } from './commands/completion.js'
+import { startMcp } from './mcp.js'
 import { die } from './util/log.js'
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
@@ -36,6 +37,8 @@ program.command('gc').description('合并感知回收（默认 dry-run）').opti
   .action(async (o) => { try { await gcCommand(loadConfig(process.cwd()), !!o.apply) } catch (e) { die((e as Error).message) } })
 program.command('completion <target> [shell]').description('install 一键装进 shell；或 bash|zsh|fish 打印补全脚本')
   .action((target, shell) => { try { if (target === 'install') installCompletion(shell); else completionCommand(target) } catch (e) { die((e as Error).message) } })
+program.command('mcp').description('启动 MCP 服务（stdio），供 AI 通过 MCP 调用 worktree-bay 完成并行开发')
+  .action(async () => { try { await startMcp() } catch (e) { die((e as Error).message) } })
 program.command('__complete', { hidden: true }).allowUnknownOption().action(() => {
   const words = process.argv.slice(process.argv.indexOf('--') + 1)
   try { console.log(complete(loadConfig(process.cwd()), words).join('\n')) } catch { /* 静默 */ }
