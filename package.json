@@ -1,6 +1,6 @@
 {
   "name": "worktree-bay",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Config-driven git worktree slot + port orchestrator for parallel multi-service development",
   "keywords": [
     "git",
