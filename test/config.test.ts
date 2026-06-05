@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'
-import { parseConfig, repoPath, renderTemplate } from '../src/config.js'
+import { parseConfig, loadConfig, repoPath, renderTemplate } from '../src/config.js'
 
 let dir: string
 function write(cfg: any) { const p = path.join(dir, 'bay.config.json'); fs.writeFileSync(p, JSON.stringify(cfg)); return p }
@@ -19,4 +19,19 @@ describe('config', () => {
   it('V5 repo 目录不存在报错', () => { const v: any = VALID(); v.services.pc = { offset: 3, repo: 'nope' }; expect(() => parseConfig(write(v))).toThrow(/repo|nope/) })
   it('repoPath 默认=服务名', () => { const c = parseConfig(write(VALID())); expect(repoPath(c, 'api')).toBe(path.join(dir, 'api')) })
   it('renderTemplate', () => { expect(renderTemplate('rqapi-{slug}', { slug: 's1-x' })).toBe('rqapi-s1-x') })
+  it('V4 未知模板变量报错', () => {
+    const v: any = VALID(); v.services.api.vars = { project: 'x-{ghostvar}' }
+    expect(() => parseConfig(write(v))).toThrow(/template var|ghostvar/)
+  })
+  it('V4 引用基础变量或本服务 vars 通过', () => {
+    const v: any = VALID(); v.services.api.vars = { project: 'rqapi-{slug}', alias: 'a-{project}' }
+    expect(() => parseConfig(write(v))).not.toThrow()
+  })
+  it('loadConfig 自下而上找到配置', () => {
+    fs.writeFileSync(path.join(dir, 'bay.config.json'), JSON.stringify(VALID()))
+    const sub = path.join(dir, 'a', 'b'); fs.mkdirSync(sub, { recursive: true })
+    // loadConfig 优先 BAY_CONFIG 环境变量，测试时确保未设
+    const saved = process.env.BAY_CONFIG; delete process.env.BAY_CONFIG
+    try { expect(loadConfig(sub).portBase).toBe(6000) } finally { if (saved !== undefined) process.env.BAY_CONFIG = saved }
+  })
 })
