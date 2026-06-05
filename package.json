@@ -27,7 +27,8 @@
     "worktree-bay": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "skill.md"
   ],
   "engines": {
     "node": ">=20"

@@ -10,7 +10,8 @@ import { rmCommand } from './commands/rm.js'
 import { gcCommand } from './commands/gc.js'
 import { complete, completionCommand, installCompletion } from './commands/completion.js'
 import { startMcp } from './mcp.js'
-import { die } from './util/log.js'
+import { readSkill } from './skill.js'
+import { die, log } from './util/log.js'
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
 const program = new Command()
@@ -39,6 +40,8 @@ program.command('completion <target> [shell]').description('install 一键装进
   .action((target, shell) => { try { if (target === 'install') installCompletion(shell); else completionCommand(target) } catch (e) { die((e as Error).message) } })
 program.command('mcp').description('启动 MCP 服务（stdio，轻量脚本，客户端按需 spawn），供 AI 调用 worktree-bay')
   .action(() => { try { startMcp() } catch (e) { die((e as Error).message) } })
+program.command('skill').description('打印 worktree-bay 使用与配置完全指南')
+  .action(() => { try { log(readSkill()) } catch (e) { die((e as Error).message) } })
 program.command('__complete', { hidden: true }).allowUnknownOption().action(() => {
   const words = process.argv.slice(process.argv.indexOf('--') + 1)
   try { console.log(complete(loadConfig(process.cwd()), words).join('\n')) } catch { /* 静默 */ }

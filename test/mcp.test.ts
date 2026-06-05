@@ -12,7 +12,7 @@ describe('mcp (lightweight stdio JSON-RPC)', () => {
   it('tools/list 返回 6 个工具', () => {
     const r = handle({ id: 2, method: 'tools/list' }) as any
     expect(r.result.tools.map((t: any) => t.name)).toEqual([
-      'worktree_bay_ls', 'worktree_bay_up', 'worktree_bay_add', 'worktree_bay_run', 'worktree_bay_down', 'worktree_bay_gc',
+      'worktree_bay_ls', 'worktree_bay_up', 'worktree_bay_add', 'worktree_bay_run', 'worktree_bay_down', 'worktree_bay_gc', 'worktree_bay_skill',
     ])
   })
   it('tools/call 未知工具返回错误', () => {
