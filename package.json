@@ -1,9 +1,54 @@
 {
   "name": "worktree-bay",
   "version": "0.1.0",
+  "description": "Config-driven git worktree slot + port orchestrator for parallel multi-service development",
+  "keywords": [
+    "git",
+    "worktree",
+    "monorepo",
+    "cli",
+    "ports",
+    "orchestration",
+    "parallel",
+    "dev"
+  ],
   "type": "module",
-  "bin": { "worktree-bay": "dist/cli.js" },
-  "scripts": { "build": "tsc -p tsconfig.json", "dev": "tsx src/cli.ts", "test": "vitest run" },
-  "dependencies": { "commander": "^12.1.0" },
-  "devDependencies": { "@types/node": "^22.0.0", "tsx": "^4.19.0", "typescript": "^5.6.0", "vitest": "^2.1.0" }
+  "license": "MIT",
+  "author": "hughcube",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hughcube/worktree-bay.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hughcube/worktree-bay/issues"
+  },
+  "homepage": "https://github.com/hughcube/worktree-bay#readme",
+  "bin": {
+    "worktree-bay": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
 }

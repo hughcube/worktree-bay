@@ -1,0 +1,65 @@
+name: CI & Publish
+
+on:
+  push:
+    branches: ['master']
+    tags: ['v*']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+  publish:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # 回写版本号到 master
+      id-token: write          # OIDC 发布 + provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+      - name: Set version from tag
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+      - run: pnpm install --frozen-lockfile
+      - run: npm install -g npm@latest    # Trusted Publishing 需 npm >= 11.5.1
+      - run: npm publish --provenance     # 无 token，走 OIDC（prepublishOnly 触发 tsc 构建 dist）
+      - name: Write version back
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
+          git checkout -B master FETCH_HEAD
+          npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+          git add package.json
+          git diff --staged --quiet || git commit -m "chore: release ${GITHUB_REF_NAME} [skip ci]"
+          git push origin master
