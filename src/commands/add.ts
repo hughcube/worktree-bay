@@ -1,0 +1,23 @@
+import path from 'node:path'
+import { BayConfig, repoPath } from '../config.js'
+import { withLock } from '../lock.js'
+import { claim } from '../slots.js'
+import { slugify, worktreeDirName } from '../naming.js'
+import { AddCtx, buildVars, bringUp } from '../engine.js'
+import { log } from '../util/log.js'
+
+export interface AddPlan { service: string; slot: number; slug: string; dir: string; repo: string }
+export function resolveAdd(cfg: BayConfig, feature: string, service: string, branch: string): AddPlan {
+  if (!cfg.services[service]) throw new Error('unknown service: ' + service)
+  const slot = claim(cfg, feature); const slug = worktreeDirName(slot, slugify(branch))
+  return { service, slot, slug, dir: path.join(repoPath(cfg, service), '.worktrees', slug), repo: repoPath(cfg, service) }
+}
+export async function addCommand(cfg: BayConfig, feature: string, service: string, branch: string, base?: string) {
+  await withLock(cfg.workspaceRoot, async () => {
+    const p = resolveAdd(cfg, feature, service, branch); const sp = cfg.services[service]
+    const ctxBase = { cfg, service, sp, slot: p.slot, slug: p.slug, dir: p.dir, repo: p.repo }
+    const ctx: AddCtx = { ...ctxBase, vars: buildVars(cfg, ctxBase) }
+    await bringUp(ctx, base ?? 'origin/HEAD', branch)
+    log(`✓ ${service} 挂入 "${feature}"（槽 ${p.slot}，端口 ${ctx.vars.port}）`)
+  })
+}
