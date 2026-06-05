@@ -5,7 +5,7 @@ import { BayConfig } from '../config.js'
 import { readLabels } from '../slots.js'
 import { log } from '../util/log.js'
 
-const SUBCMDS = ['claim', 'up', 'add', 'ls', 'gc', 'down', 'rm', 'run', 'sh', 'completion', 'mcp', 'skill']
+const SUBCMDS = ['init', 'doctor', 'claim', 'up', 'add', 'ls', 'path', 'gc', 'down', 'rm', 'run', 'sh', 'completion', 'mcp', 'skill', 'version', 'help']
 // words = 命令名 + 光标前已输入完的词（不含当前正在补的词）
 export function complete(cfg: BayConfig, words: string[]): string[] {
   const prev = words.slice(1)

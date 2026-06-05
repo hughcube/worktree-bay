@@ -24,10 +24,13 @@ worktree-bay completion install   # 一键装 shell 补全（可选）
 
 | 命令 | 作用 |
 |---|---|
+| `worktree-bay init` | 在当前工作区生成 `worktree-bay.config.json`（扫描子 git 仓预填服务） |
+| `worktree-bay doctor` | 体检：git 是否可用、配置是否有效、各服务仓是否就绪 |
 | `worktree-bay up <feature> <service...>` | **最常用**：一条命令为功能起多个服务（自动占槽 + 各服务开 worktree，分支默认 = 功能名） |
 | `worktree-bay claim <feature>` | 只占一个槽、打印端口块（不开 worktree） |
 | `worktree-bay add <feature> <service> [branch] [base]` | 为功能在单个服务开 worktree。`branch` 省略 = 功能名；`base` 省略 = `origin/<主分支>` |
-| `worktree-bay ls` | 列出所有槽位：功能名、端口块、已起服务及端口、是否已并入主分支 |
+| `worktree-bay ls [--json]` | 列出所有槽位：功能名、端口块、已起服务及端口、是否已并入主分支；`--json` 输出结构化数据（含 worktree 路径） |
+| `worktree-bay path <feature> <service>` | 打印某服务 worktree 的绝对路径（可 `cd $(worktree-bay path f api)`） |
 | `worktree-bay run <feature> <service> <name> [args...]` | 在某服务运行体里跑配置的 `run.<name>`（如 test），透传 args |
 | `worktree-bay sh <feature> <service>` | 进入某服务运行体的 shell |
 | `worktree-bay down <feature> [-f]` | 拆除整个功能的所有服务 worktree（= `rm <feature>`） |
@@ -36,6 +39,8 @@ worktree-bay completion install   # 一键装 shell 补全（可选）
 | `worktree-bay completion <install\|bash\|zsh\|fish>` | `install` 一键装进 shell；或打印补全脚本 |
 | `worktree-bay mcp` | 启动 MCP 服务（stdio，轻量脚本，客户端按需 spawn），供 AI 调用 |
 | `worktree-bay skill` | 打印本指南 |
+| `worktree-bay version` / `--version` | 显示版本号 |
+| `worktree-bay help [命令]` | 帮助；`help <命令>` 看单命令用法 |
 
 典型流程：
 

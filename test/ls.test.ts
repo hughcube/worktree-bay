@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'
 import type { BayConfig } from '../src/config.js'
-import { renderSlots } from '../src/commands/ls.js'
+import { renderSlots, slotsData } from '../src/commands/ls.js'
 import { claim } from '../src/slots.js'
 
 let ws: string; let cfg: BayConfig
@@ -17,5 +17,11 @@ describe('ls', () => {
     const out = renderSlots(c2)
     expect(out).toContain('block=6010'); expect(out).toContain('web@6011'); expect(out).not.toContain('api=')
     fs.rmSync(ws2, { recursive: true, force: true })
+  })
+  it('slotsData 返回结构化数据（端口 + worktree 路径）', () => {
+    claim(cfg, 'feat-a'); fs.mkdirSync(path.join(ws, 'api', '.worktrees', 's1-feat-a'), { recursive: true })
+    const d = slotsData(cfg) as Array<{ feature: string; block: number; services: Array<{ service: string; port: number; dir: string }> }>
+    expect(d[0].feature).toBe('feat-a'); expect(d[0].block).toBe(6010)
+    expect(d[0].services[0]).toMatchObject({ service: 'api', port: 6011 }); expect(d[0].services[0].dir).toContain('s1-feat-a')
   })
 })

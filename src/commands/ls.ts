@@ -14,4 +14,12 @@ export function renderSlots(cfg: BayConfig): string {
   }
   return lines.join('\n') || '(no slots in use)'
 }
-export function lsCommand(cfg: BayConfig) { log(renderSlots(cfg)) }
+export function slotsData(cfg: BayConfig): object[] {
+  const occ = scanOccupancy(cfg); const labels = readLabels(cfg)
+  const slots = new Set<number>([...occ.keys(), ...Object.keys(labels).map(Number)])
+  return [...slots].sort((a, b) => a - b).map((n) => {
+    const base = blockBase(cfg.portBase, cfg.slotSpan, n)
+    return { slot: n, feature: labels[String(n)] ?? null, block: base, services: (occ.get(n) ?? []).map((o) => ({ service: o.service, port: base + cfg.services[o.service].offset, dir: o.dir })) }
+  })
+}
+export function lsCommand(cfg: BayConfig, json = false) { log(json ? JSON.stringify(slotsData(cfg), null, 2) : renderSlots(cfg)) }
