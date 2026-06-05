@@ -4,6 +4,7 @@ import { withLock } from '../lock.js'
 import { claim } from '../slots.js'
 import { slugify, worktreeDirName } from '../naming.js'
 import { AddCtx, buildVars, bringUp } from '../engine.js'
+import { mainBranch } from '../git.js'
 import { log } from '../util/log.js'
 
 export interface AddPlan { service: string; slot: number; slug: string; dir: string; repo: string }
@@ -17,7 +18,7 @@ export async function addCommand(cfg: BayConfig, feature: string, service: strin
     const p = resolveAdd(cfg, feature, service, branch); const sp = cfg.services[service]
     const ctxBase = { cfg, service, sp, slot: p.slot, slug: p.slug, dir: p.dir, repo: p.repo }
     const ctx: AddCtx = { ...ctxBase, vars: buildVars(cfg, ctxBase) }
-    await bringUp(ctx, base ?? 'origin/HEAD', branch)
+    await bringUp(ctx, base ?? `origin/${mainBranch(p.repo)}`, branch)
     log(`✓ ${service} 挂入 "${feature}"（槽 ${p.slot}，端口 ${ctx.vars.port}）`)
   })
 }

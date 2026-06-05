@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs'
 import { Command } from 'commander'
 import { loadConfig, BayConfig } from './config.js'
 import { claimCommand } from './commands/claim.js'
@@ -10,18 +11,27 @@ import { gcCommand } from './commands/gc.js'
 import { complete, completionCommand } from './commands/completion.js'
 import { die } from './util/log.js'
 
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
 const program = new Command()
-program.name('worktree-bay').description('worktree 槽位+端口编排器').version('0.1.0')
+program.name('worktree-bay').description('worktree 槽位+端口编排器').version(pkg.version)
 const sync = (fn: (c: BayConfig) => void) => { try { fn(loadConfig(process.cwd())) } catch (e) { die((e as Error).message) } }
 
-program.command('claim <feature>').action(async (f) => { try { await claimCommand(loadConfig(process.cwd()), f) } catch (e) { die((e as Error).message) } })
-program.command('ls').action(() => sync(lsCommand))
-program.command('add <feature> <service> <branch> [base]').action(async (f, s, b, base) => { try { await addCommand(loadConfig(process.cwd()), f, s, b, base) } catch (e) { die((e as Error).message) } })
-program.command('run <feature> <service> <name> [args...]').action((f, s, n, args) => sync((c) => runCommand(c, f, s, n, args ?? [])))
-program.command('sh <feature> <service>').action((f, s) => sync((c) => shCommand(c, f, s)))
-program.command('rm <feature> [service]').option('-f, --force').action(async (f, s, o) => { try { await rmCommand(loadConfig(process.cwd()), f, s, !!o.force) } catch (e) { die((e as Error).message) } })
-program.command('gc').option('--apply').action(async (o) => { try { await gcCommand(loadConfig(process.cwd()), !!o.apply) } catch (e) { die((e as Error).message) } })
-program.command('completion <shell>').action((sh) => { try { completionCommand(sh) } catch (e) { die((e as Error).message) } })
+program.command('claim <feature>').description('为功能占一个槽位（端口块）')
+  .action(async (f) => { try { await claimCommand(loadConfig(process.cwd()), f) } catch (e) { die((e as Error).message) } })
+program.command('ls').description('列出所有槽位与占用状态')
+  .action(() => sync(lsCommand))
+program.command('add <feature> <service> <branch> [base]').description('在某服务为功能开 worktree 并挂入其槽位')
+  .action(async (f, s, b, base) => { try { await addCommand(loadConfig(process.cwd()), f, s, b, base) } catch (e) { die((e as Error).message) } })
+program.command('run <feature> <service> <name> [args...]').description('在服务运行体里跑 run.<name> 命令（透传 args）')
+  .action((f, s, n, args) => sync((c) => runCommand(c, f, s, n, args ?? [])))
+program.command('sh <feature> <service>').description('进入服务运行体的 shell')
+  .action((f, s) => sync((c) => shCommand(c, f, s)))
+program.command('rm <feature> [service]').description('拆除某服务或整槽的 worktree（默认查脏/未推保护）').option('-f, --force', '跳过脏/未推检查强制删除')
+  .action(async (f, s, o) => { try { await rmCommand(loadConfig(process.cwd()), f, s, !!o.force) } catch (e) { die((e as Error).message) } })
+program.command('gc').description('合并感知回收（默认 dry-run）').option('--apply', '实际执行回收')
+  .action(async (o) => { try { await gcCommand(loadConfig(process.cwd()), !!o.apply) } catch (e) { die((e as Error).message) } })
+program.command('completion <shell>').description('打印 shell 补全脚本（bash|zsh|fish）')
+  .action((sh) => { try { completionCommand(sh) } catch (e) { die((e as Error).message) } })
 program.command('__complete', { hidden: true }).allowUnknownOption().action(() => {
   const words = process.argv.slice(process.argv.indexOf('--') + 1)
   try { console.log(complete(loadConfig(process.cwd()), words).join('\n')) } catch { /* 静默 */ }

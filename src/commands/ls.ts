@@ -10,7 +10,7 @@ export function renderSlots(cfg: BayConfig): string {
   for (const n of [...slots].sort((a, b) => a - b)) {
     const base = blockBase(cfg.portBase, cfg.slotSpan, n)
     const svc = (occ.get(n) ?? []).map((o) => `${o.service}@${base + cfg.services[o.service].offset}`)
-    lines.push(`slot ${n}  ${labels[String(n)] ?? '(unnamed)'}  api=${base + 1}  [${svc.join(', ') || 'no worktree'}]`)
+    lines.push(`slot ${n}  ${labels[String(n)] ?? '(unnamed)'}  block=${base}  [${svc.join(', ') || 'no worktree'}]`)
   }
   return lines.join('\n') || '(no slots in use)'
 }

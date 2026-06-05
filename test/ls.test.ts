@@ -9,5 +9,13 @@ beforeEach(() => { ws = fs.mkdtempSync(path.join(os.tmpdir(), 'bayls-')); fs.mkd
 afterEach(() => fs.rmSync(ws, { recursive: true, force: true }))
 
 describe('ls', () => {
-  it('列出 claim 槽 + api 端口', () => { claim(cfg, 'feat-a'); fs.mkdirSync(path.join(ws, 'api', '.worktrees', 's1-feat-a'), { recursive: true }); const out = renderSlots(cfg); expect(out).toMatch(/slot 1/); expect(out).toMatch(/feat-a/); expect(out).toMatch(/6011/) })
+  it('列出 claim 槽 + 服务端口', () => { claim(cfg, 'feat-a'); fs.mkdirSync(path.join(ws, 'api', '.worktrees', 's1-feat-a'), { recursive: true }); const out = renderSlots(cfg); expect(out).toMatch(/slot 1/); expect(out).toMatch(/feat-a/); expect(out).toMatch(/6011/) })
+  it('通用：非 api 服务不出现硬编码 "api="，显示 block 与真实服务名', () => {
+    const ws2 = fs.mkdtempSync(path.join(os.tmpdir(), 'bayls2-')); fs.mkdirSync(path.join(ws2, 'web'))
+    const c2: BayConfig = { workspaceRoot: ws2, portBase: 6000, slotSpan: 10, maxSlots: 9, configDir: ws2, services: { web: { offset: 1 } } }
+    claim(c2, 'f'); fs.mkdirSync(path.join(ws2, 'web', '.worktrees', 's1-f'), { recursive: true })
+    const out = renderSlots(c2)
+    expect(out).toContain('block=6010'); expect(out).toContain('web@6011'); expect(out).not.toContain('api=')
+    fs.rmSync(ws2, { recursive: true, force: true })
+  })
 })
