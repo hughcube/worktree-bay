@@ -1,16 +1,20 @@
 {
   "name": "worktree-bay",
   "version": "1.5.0",
-  "description": "Config-driven git worktree slot + port orchestrator for parallel multi-service development",
+  "description": "Per-feature git worktree + port slots for parallel multi-service development: auto deps, env wiring, frontend-to-backend, merge-aware reclaim, plus an MCP server for AI agents.",
   "keywords": [
     "git",
+    "git-worktree",
     "worktree",
     "monorepo",
     "cli",
     "ports",
     "orchestration",
     "parallel",
-    "dev"
+    "parallel-development",
+    "developer-tools",
+    "dev-environment",
+    "mcp"
   ],
   "type": "module",
   "license": "MIT",
