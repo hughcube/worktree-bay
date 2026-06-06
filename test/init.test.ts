@@ -13,7 +13,9 @@ describe('init', () => {
     initCommand(ws)
     const cfg = JSON.parse(fs.readFileSync(path.join(ws, 'worktree-bay.config.json'), 'utf8'))
     expect(Object.keys(cfg.services).sort()).toEqual(['api', 'web'])
-    expect(cfg.services.web.offset).not.toBe(cfg.services.api.offset)
+    expect(cfg.portBase).toBeUndefined(); expect(cfg.slotSpan).toBeUndefined(); expect(cfg.maxSlots).toBe(9)
+    expect(typeof cfg.services.api.port).toBe('number')
+    expect(cfg.services.web.port).not.toBe(cfg.services.api.port)
   })
   it('无子仓时写 api/web 示例模板', () => {
     initCommand(ws)

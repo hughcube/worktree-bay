@@ -13,7 +13,7 @@ export function doctor(cfg: BayConfig): number {
   if (spawnSync('git', ['--version'], { encoding: 'utf8' }).status === 0) ok('git 可用')
   else bad('git 不可用（worktree 依赖 git）')
 
-  ok(`配置已加载并通过校验（${Object.keys(cfg.services).length} 个服务，槽位 1..${cfg.maxSlots}，端口块 ${cfg.portBase}+N*${cfg.slotSpan}）`)
+  ok(`配置已加载并通过校验（${Object.keys(cfg.services).length} 个服务，槽位 1..${cfg.maxSlots}，端口 = 服务基址 + 槽号）`)
 
   for (const name of Object.keys(cfg.services)) {
     const repo = repoPath(cfg, name)

@@ -11,7 +11,7 @@
 
 在 monorepo / 多仓工作区里并行开发多个功能时，git worktree 能隔离代码，但隔离不了运行时——端口会撞、依赖要重装、前端连不上你本地起在偏移端口的后端。`worktree-bay` 在 worktree 之上补一层「**功能 = 槽位**」的编排：
 
-- **端口不撞**：每个功能占一个槽 `N`，得到端口块 `6000 + N*10`，块内各服务按固定偏移取端口。
+- **端口不撞**：每个服务有自己的端口段，功能占槽 `N` → 各服务用 `自己的基址 + N`，与主 dev（槽 0）和其它槽天然错开。
 - **免重装**：依赖从主 checkout 拷贝（或按服务自定义安装命令），不必每个 worktree 从头装。
 - **前端自接后端**：前端按「同槽上游服务」自动把 api base 指向本槽后端端口。
 - **不泄漏**：槽位占用从文件系统派生；`gc` 合并感知回收（已并入主分支且干净才删，保守不误删）。
@@ -52,12 +52,10 @@ worktree-bay gc
 ```jsonc
 {
   "workspaceRoot": "/path/to/workspace",
-  "portBase": 6000,
-  "slotSpan": 10,
   "maxSlots": 9,
   "services": {
     "api": {
-      "offset": 1,
+      "port": 6001,                                                // 端口段基址（= 主 dev/槽0），槽 N 用 6001+N
       "vars": { "project": "myapi-{slug}" },
       "copy": [".env", "vendor"],                                  // 从主 checkout 递归拷文件/目录
       "env": { ".env": { "APP_PORT": "{port}" } },                 // 合并键值进 dotenv（保留其它键）
@@ -67,7 +65,7 @@ worktree-bay gc
       "run": { "test": ["composer", "run", "test"] }               // 命名命令
     },
     "lms": {
-      "offset": 2,
+      "port": 6011,                                                // 与 api 段不重叠（间距 > maxSlots）
       "upstream": { "service": "api", "fallback": "http://localhost:6001" }, // → {upstreamBase}
       "env": { ".env.dev.local": { "VITE_API_BASE_URL": "{upstreamBase}" } },
       "setup": "pnpm install",
@@ -81,7 +79,7 @@ worktree-bay gc
 
 | 原语 | 说明 |
 |---|---|
-| `offset`（必填） | 本服务端口 = `块基址 + offset`，各服务互不相同、`1 ≤ offset < slotSpan` |
+| `port`（必填） | 本服务端口段基址（= 主 dev/槽0）；槽 N 端口 = `port + N`；各服务的段 `[port, port+maxSlots]` 互不重叠 |
 | `repo` | 仓库目录名（相对 workspaceRoot），默认 = 服务名 |
 | `vars` | 自定义模板变量 |
 | `copy` | 从主 checkout 递归拷贝的文件/目录（含依赖目录） |
@@ -94,11 +92,11 @@ worktree-bay gc
 
 ### 模板变量
 
-`{slot}` `{blockBase}` `{port}` `{slug}` `{worktree}` `{repo}` `{upstreamBase}` `{cmd...}`，以及 `vars` 里自定义的。
+`{slot}` `{port}` `{slug}` `{worktree}` `{repo}` `{upstreamBase}` `{cmd...}`，以及 `vars` 里自定义的。
 
 ## 工作原理
 
-- **槽位 = 端口块**：功能占槽 `N`（1..`maxSlots`）→ 端口块 `portBase + N*slotSpan`；块内服务按 `offset` 取端口。
+- **按服务分段**：每个服务有自己的端口段（基址 `port` = 主 dev/槽0），功能占槽 `N`（1..`maxSlots`）→ 该服务用 `port + N`。服务数量无上限，各段不重叠即可。
 - **占用从文件系统派生**：槽是否被占，看各服务 `<repo>/.worktrees/s<N>-*` 目录是否存在；`.worktree-bay-slots.json` 只是「功能名 → 槽号」的标签账本（预约）。删了 worktree，槽自动空出。
 - **并发安全**：`claim/add/rm/gc` 全程持工作区原子锁。
 - **前端自接**：前端有 `upstream` 时，若同槽已起该上游服务的 worktree，就把 api base 指向本槽端口；否则用 `fallback`。

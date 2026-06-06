@@ -5,7 +5,7 @@ import { resolveAdd } from '../src/commands/add.js'
 import { claim } from '../src/slots.js'
 
 let ws: string; let cfg: BayConfig
-beforeEach(() => { ws = fs.mkdtempSync(path.join(os.tmpdir(), 'bayadd-')); fs.mkdirSync(path.join(ws, 'api')); cfg = { workspaceRoot: ws, portBase: 6000, slotSpan: 10, maxSlots: 9, configDir: ws, services: { api: { offset: 1 } } } })
+beforeEach(() => { ws = fs.mkdtempSync(path.join(os.tmpdir(), 'bayadd-')); fs.mkdirSync(path.join(ws, 'api')); cfg = { workspaceRoot: ws, maxSlots: 9, configDir: ws, services: { api: { port: 6001 } } } })
 afterEach(() => fs.rmSync(ws, { recursive: true, force: true }))
 
 describe('add resolve', () => {

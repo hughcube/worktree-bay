@@ -63,19 +63,17 @@ worktree-bay gc                        # 回收已合并的
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `workspaceRoot` | string | 工作区根绝对路径，各服务仓在其下 |
-| `portBase` | number | 端口基址，如 `6000` |
-| `slotSpan` | number | 每个槽位的端口跨度（块大小），如 `10` |
-| `maxSlots` | number | 最大并行功能数，如 `9` |
+| `maxSlots` | number | 最大并行功能数（每个服务预留 `maxSlots` 个端口），如 `9` |
 | `services` | object | 服务名 → 服务定义（见下） |
 
-**端口计算**：`块基址 = portBase + 槽位N * slotSpan`；`某服务端口 = 块基址 + 该服务 offset`。
-例：portBase=6000, slotSpan=10，槽 1 的块基址 = 6010，offset=1 的服务端口 = 6011。
+**端口模型（按服务分段）**：每个服务有自己的端口段，基址 `port` 就是它的主 dev 端口（= 槽 0）；某服务在某槽 N 的端口 = `service.port + N`（槽 1..maxSlots）。
+例：`api.port=6001` → 槽 1 用 6002、槽 2 用 6003…；`lms.port=6011` → 槽 1 用 6012…。**服务数量无上限**，只要各服务端口段（`[port, port+maxSlots]`）互不重叠即可。
 
 ### 服务定义原语
 
 | 原语 | 必填 | 类型 | 说明 |
 |---|---|---|---|
-| `offset` | ✅ | number | 本服务在块内的偏移；`1 ≤ offset < slotSpan`，各服务互不相同 |
+| `port` | ✅ | number | 本服务端口段基址（= 主 dev/槽0 端口）；各服务的段 `[port, port+maxSlots]` 互不重叠 |
 | `repo` | | string | 仓库目录名（相对 workspaceRoot），**默认 = 服务名** |
 | `vars` | | object | 自定义模板变量，值里可引用基础变量，如 `{ "project": "myapi-{slug}" }` |
 | `copy` | | string[] | 挂入时从主 checkout **递归拷贝**到 worktree 的文件/目录（含依赖目录，如 `vendor`）。含符号链接也安全（会跟随拷目标内容） |
@@ -94,8 +92,7 @@ worktree-bay gc                        # 回收已合并的
 | 变量 | 含义 |
 |---|---|
 | `{slot}` | 槽位号 |
-| `{blockBase}` | 块基址 `portBase + slot*slotSpan` |
-| `{port}` | 本服务端口 `blockBase + offset` |
+| `{port}` | 本服务端口 `service.port + slot` |
 | `{slug}` | worktree 目录名 `s<slot>-<分支归一化>` |
 | `{worktree}` | worktree 绝对路径 |
 | `{repo}` | 服务仓绝对路径 |
@@ -105,8 +102,8 @@ worktree-bay gc                        # 回收已合并的
 
 ### 加载时强制校验
 
-1. 各服务 `offset` 互不相同；
-2. `1 ≤ offset < slotSpan`；
+1. 各服务端口段 `[port, port+maxSlots]` 互不重叠（任意两服务 `|portA - portB| > maxSlots`）；
+2. `port` 必填且为正数；
 3. `upstream.service` 必须存在于 `services`；
 4. 所有模板里引用的 `{var}` 可解析（基础变量或本服务 vars 已声明）；
 5. `repo` 指向的目录存在。
@@ -117,12 +114,10 @@ worktree-bay gc                        # 回收已合并的
 ```jsonc
 {
   "workspaceRoot": "/path/to/workspace",
-  "portBase": 6000,
-  "slotSpan": 10,
   "maxSlots": 9,
   "services": {
     "api": {
-      "offset": 1,
+      "port": 6001,
       "vars": { "project": "myapi-{slug}" },
       "copy": [".env", "vendor"],
       "env": { ".env": { "APP_PORT": "{port}", "CACHE_PREFIX": "dev:{slug}:" } },
@@ -132,7 +127,7 @@ worktree-bay gc                        # 回收已合并的
       "run": { "test": ["composer", "run", "test"], "migrate": ["php", "artisan", "migrate"] }
     },
     "web": {
-      "offset": 2,
+      "port": 6011,
       "upstream": { "service": "api", "fallback": "http://localhost:6001" },
       "env": { ".env.local": { "VITE_API_BASE_URL": "{upstreamBase}" } },
       "setup": "pnpm install",

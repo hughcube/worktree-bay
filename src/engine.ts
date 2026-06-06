@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { BayConfig, Service, renderTemplate } from './config.js'
-import { blockBase, portOf, isPortFree } from './ports.js'
+import { portOf, isPortFree } from './ports.js'
 import { scanOccupancy } from './slots.js'
 import { addWorktree } from './git.js'
 import { runShell, run, spliceArgv, isTTY } from './util/exec.js'
@@ -14,7 +14,7 @@ export function mergeEnvText(text: string, kv: Record<string, string>): string {
   return out.join('\n')
 }
 export function resolveUpstreamBase(cfg: BayConfig, slot: number, up: { service: string; fallback: string }, materialized: boolean): string {
-  return materialized ? `http://localhost:${portOf(cfg.portBase, cfg.slotSpan, slot, cfg.services[up.service].offset)}` : up.fallback
+  return materialized ? `http://localhost:${portOf(cfg.services[up.service].port, slot)}` : up.fallback
 }
 function upstreamMaterialized(cfg: BayConfig, slot: number, service: string): boolean {
   return (scanOccupancy(cfg).get(slot) ?? []).some((o) => o.service === service)
@@ -22,7 +22,7 @@ function upstreamMaterialized(cfg: BayConfig, slot: number, service: string): bo
 
 export interface AddCtx { cfg: BayConfig; service: string; sp: Service; slot: number; slug: string; dir: string; repo: string; vars: Record<string, string | number> }
 export function buildVars(cfg: BayConfig, ctx: Omit<AddCtx, 'vars'>): Record<string, string | number> {
-  const base: Record<string, string | number> = { slot: ctx.slot, blockBase: blockBase(cfg.portBase, cfg.slotSpan, ctx.slot), port: portOf(cfg.portBase, cfg.slotSpan, ctx.slot, ctx.sp.offset), slug: ctx.slug, worktree: ctx.dir, repo: ctx.repo }
+  const base: Record<string, string | number> = { slot: ctx.slot, port: portOf(ctx.sp.port, ctx.slot), slug: ctx.slug, worktree: ctx.dir, repo: ctx.repo }
   if (ctx.sp.upstream) base.upstreamBase = resolveUpstreamBase(cfg, ctx.slot, ctx.sp.upstream, upstreamMaterialized(cfg, ctx.slot, ctx.sp.upstream.service))
   for (const [k, v] of Object.entries(ctx.sp.vars ?? {})) base[k] = renderTemplate(v, base)
   return base

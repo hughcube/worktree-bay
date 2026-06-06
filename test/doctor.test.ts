@@ -7,7 +7,7 @@ import { doctor } from '../src/commands/doctor.js'
 let ws: string
 beforeEach(() => { ws = fs.mkdtempSync(path.join(os.tmpdir(), 'baydoc-')) })
 afterEach(() => fs.rmSync(ws, { recursive: true, force: true }))
-const cfg = (): BayConfig => ({ workspaceRoot: ws, portBase: 6000, slotSpan: 10, maxSlots: 9, configDir: ws, services: { api: { offset: 1 } } })
+const cfg = (): BayConfig => ({ workspaceRoot: ws, maxSlots: 9, configDir: ws, services: { api: { port: 6001 } } })
 
 describe('doctor', () => {
   it('服务仓是 git 仓 → 0 问题', () => { spawnSync('git', ['init', '-q', path.join(ws, 'api')]); expect(doctor(cfg())).toBe(0) })

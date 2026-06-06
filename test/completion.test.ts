@@ -5,7 +5,7 @@ import { complete } from '../src/commands/completion.js'
 import { claim } from '../src/slots.js'
 
 let ws: string; let cfg: BayConfig
-beforeEach(() => { ws = fs.mkdtempSync(path.join(os.tmpdir(), 'baycomp-')); fs.mkdirSync(path.join(ws, 'api')); cfg = { workspaceRoot: ws, portBase: 6000, slotSpan: 10, maxSlots: 9, configDir: ws, services: { api: { offset: 1 }, lms: { offset: 2 } } }; claim(cfg, 'drill') })
+beforeEach(() => { ws = fs.mkdtempSync(path.join(os.tmpdir(), 'baycomp-')); fs.mkdirSync(path.join(ws, 'api')); cfg = { workspaceRoot: ws, maxSlots: 9, configDir: ws, services: { api: { port: 6001 }, lms: { port: 6011 } } }; claim(cfg, 'drill') })
 afterEach(() => fs.rmSync(ws, { recursive: true, force: true }))
 
 describe('completion', () => {

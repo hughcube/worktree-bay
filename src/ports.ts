@@ -1,6 +1,8 @@
 import net from 'node:net'
-export function blockBase(portBase: number, slotSpan: number, slot: number): number { return portBase + slot * slotSpan }
-export function portOf(portBase: number, slotSpan: number, slot: number, offset: number): number { return blockBase(portBase, slotSpan, slot) + offset }
+
+// 按服务分段：某服务在某槽的端口 = 服务基址(主 dev/槽0) + 槽号
+export function portOf(servicePort: number, slot: number): number { return servicePort + slot }
+
 export function isPortFree(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const srv = net.createServer()
