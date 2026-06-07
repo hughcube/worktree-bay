@@ -22,10 +22,11 @@ export async function addCommand(cfg: BayConfig, feature: string, service: strin
     const ctxBase = { cfg, service, sp, slot: p.slot, slug: p.slug, dir: p.dir, repo: p.repo }
     const ctx: AddCtx = { ...ctxBase, vars: buildVars(cfg, ctxBase) }
     if (fs.existsSync(p.dir)) {   // 幂等重入：worktree 已在 → 不重建/不重跑 setup，但确保 dev server 在跑
-      log(t(`  • 已就绪（槽 ${p.slot}，端口 ${ctx.vars.port}）`, `  • ready (slot ${p.slot}, port ${ctx.vars.port})`))
+      log(t(`${service}  ·  已就绪 · 槽 ${p.slot} · 端口 ${ctx.vars.port}`, `${service}  ·  ready · slot ${p.slot} · port ${ctx.vars.port}`))
       await ensureStarted(ctx)
       return
     }
+    log(t(`${service}  ·  槽 ${p.slot} · 端口 ${ctx.vars.port} · 分支 ${br}`, `${service}  ·  slot ${p.slot} · port ${ctx.vars.port} · branch ${br}`))
     const resolvedBase = base ?? `origin/${mainBranch(p.repo)}`
     try {
       await bringUp(ctx, resolvedBase, br)
@@ -36,14 +37,10 @@ export async function addCommand(cfg: BayConfig, feature: string, service: strin
       throw e
     }
     await ensureStarted(ctx)
-    log(t(`✓ ${service} 挂入 "${feature}"（槽 ${p.slot}，端口 ${ctx.vars.port}，分支 ${br}）`, `✓ ${service} added to "${feature}" (slot ${p.slot}, port ${ctx.vars.port}, branch ${br})`))
   })
 }
 
-// up: 一条命令为功能批量起多个服务（claim 自动 + 各服务默认分支）
+// up: 一条命令为功能批量起多个服务（claim 自动 + 各服务默认分支）。每个服务由 addCommand 自己打印简洁标题。
 export async function upCommand(cfg: BayConfig, feature: string, services: string[], base?: string) {
-  for (let i = 0; i < services.length; i++) {
-    log(t(`▶ [${i + 1}/${services.length}] 起 ${services[i]} …`, `▶ [${i + 1}/${services.length}] bringing up ${services[i]} …`))
-    await addCommand(cfg, feature, services[i], undefined, base)
-  }
+  for (const service of services) await addCommand(cfg, feature, service, undefined, base)
 }

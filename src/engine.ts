@@ -34,7 +34,6 @@ export function buildVars(cfg: BayConfig, ctx: Omit<AddCtx, 'vars'>): Record<str
 export async function bringUp(ctx: AddCtx, base: string, branch: string): Promise<void> {
   const { sp, dir, repo, vars } = ctx
   if (await portInUse(Number(vars.port))) throw new Error(t(`端口 ${vars.port} 已被占用。先停掉占用它的进程，或用 \`worktree-bay gc\`/\`worktree-bay down <功能>\` 释放其它槽后重试。`, `port ${vars.port} is already in use. Stop whatever is using it, or free a slot with \`worktree-bay gc\`/\`worktree-bay down <feature>\`, then retry.`))
-  log(t(`  → 创建 worktree（分支 ${branch}）…`, `  → creating worktree (branch ${branch})…`))
   addWorktree(repo, dir, branch, base)
   for (const rel of sp.copy ?? []) {
     // dereference: vendor/node_modules 含符号链接，Windows 下原样复制符号链接会失败，跟随并拷目标内容。

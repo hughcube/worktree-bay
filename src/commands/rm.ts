@@ -17,13 +17,12 @@ export async function rmCommand(cfg: BayConfig, feature: string, service: string
   await withLock(cfg.workspaceRoot, async () => {
     let removed = 0
     const occs = resolveRm(cfg, feature, service)
-    for (let i = 0; i < occs.length; i++) {
-      const o = occs[i]; const repo = repoPath(cfg, o.service); const branch = currentBranch(o.dir)
-      const tag = t(`[${i + 1}/${occs.length}]`, `[${i + 1}/${occs.length}]`)
-      if (!force && (isDirty(o.dir) || hasUnpushed(repo, branch))) { warn(t(`▶ ${tag} 跳过 ${o.service}：有未提交或未推送的改动。先提交/推送，或加 -f 强制删除（会丢这些改动）。`, `▶ ${tag} skipped ${o.service}: uncommitted or unpushed changes. Commit/push first, or pass -f to force-remove (discards them).`)); continue }
-      log(t(`▶ ${tag} 拆除 ${o.service} …`, `▶ ${tag} removing ${o.service} …`))
+    for (const o of occs) {
+      const repo = repoPath(cfg, o.service); const branch = currentBranch(o.dir)
+      if (!force && (isDirty(o.dir) || hasUnpushed(repo, branch))) { warn(t(`${o.service}  ·  跳过：有未提交或未推送的改动。先提交/推送，或加 -f 强删（会丢改动）。`, `${o.service}  ·  skipped: uncommitted or unpushed changes. Commit/push first, or pass -f to force-remove (discards them).`)); continue }
+      log(t(`${o.service}  ·  拆除…`, `${o.service}  ·  tearing down…`))
       const stopped = stopManaged(cfg.workspaceRoot, o.dir)   // 先停 dev server（释放对 worktree 文件的占用）
-      if (stopped) log(t(`  ▸ 已停止 dev server（pid ${stopped.pid}）`, `  ▸ stopped dev server (pid ${stopped.pid})`))
+      if (stopped) log(t(`  ✓ 已停止 dev server（pid ${stopped.pid}）`, `  ✓ stopped dev server (pid ${stopped.pid})`))
       const sp = cfg.services[o.service]
       if (sp.teardown) { const vars = buildVars(cfg, { cfg, service: o.service, sp, slot: o.slot, slug: o.slug, dir: o.dir, repo }); const cmd = renderTemplate(sp.teardown, vars); await runShellLive(cmd, { cwd: repo }, t(`teardown ${o.service}：${cmd}`, `teardown ${o.service}: ${cmd}`)) }
       await withProgress(t(`移除 ${o.service} 的 worktree`, `removing ${o.service} worktree`), () => removeWorktree(repo, o.dir, force))
