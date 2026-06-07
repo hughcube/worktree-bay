@@ -6,16 +6,16 @@ import { readLabels } from '../slots.js'
 import { log } from '../util/log.js'
 import { t } from '../i18n.js'
 
-const SUBCMDS = ['init', 'doctor', 'claim', 'up', 'add', 'ls', 'path', 'gc', 'down', 'rm', 'run', 'sh', 'completion', 'mcp', 'skill', 'version', 'help']
+const SUBCMDS = ['init', 'doctor', 'claim', 'up', 'add', 'ls', 'path', 'gc', 'down', 'rm', 'run', 'sh', 'start', 'stop', 'restart', 'completion', 'mcp', 'skill', 'version', 'help']
 // words = 命令名 + 光标前已输入完的词（不含当前正在补的词）
 export function complete(cfg: BayConfig | null, words: string[]): string[] {
   const prev = words.slice(1)
   if (prev.length === 0) return SUBCMDS
   if (!cfg) return []   // 无配置（不在工作区内）：子命令已补全，feature/service 无从读取
   const sub = prev[0]; const pos = prev.length
-  const featureSubs = ['up', 'add', 'rm', 'down', 'run', 'sh', 'path']
+  const featureSubs = ['up', 'add', 'rm', 'down', 'run', 'sh', 'path', 'start', 'stop', 'restart']
   if (featureSubs.includes(sub) && pos === 1) return Object.values(readLabels(cfg))
-  if (['add', 'run', 'sh', 'path'].includes(sub) && pos === 2) return Object.keys(cfg.services)
+  if (['add', 'run', 'sh', 'path', 'start', 'stop', 'restart'].includes(sub) && pos === 2) return Object.keys(cfg.services)
   if (sub === 'run' && pos === 3) return Object.keys(cfg.services[prev[2]]?.run ?? {})   // run <feature> <service> <name>：补该服务的 run 命令名
   if (sub === 'up' && pos >= 2) return Object.keys(cfg.services)   // up 接变长服务列表
   return []

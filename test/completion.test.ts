@@ -15,6 +15,11 @@ describe('completion', () => {
   it('up 第二参补 feature', () => expect(complete(cfg, ['bay', 'up'])).toContain('drill'))
   it('up 变长参补 service', () => { expect(complete(cfg, ['bay', 'up', 'drill'])).toEqual(expect.arrayContaining(['api', 'lms'])); expect(complete(cfg, ['bay', 'up', 'drill', 'api'])).toEqual(expect.arrayContaining(['api', 'lms'])) })
   it('down 第二参补 feature', () => expect(complete(cfg, ['bay', 'down'])).toContain('drill'))
+  it('start/stop/restart 在子命令里且补 feature/service', () => {
+    const subs = complete(cfg, ['bay']); for (const s of ['start', 'stop', 'restart']) expect(subs).toContain(s)
+    expect(complete(cfg, ['bay', 'restart'])).toContain('drill')
+    expect(complete(cfg, ['bay', 'stop', 'drill'])).toEqual(expect.arrayContaining(['api', 'lms']))
+  })
   it('run 第四参补该服务的 run 命令名（无 run 则空）', () => {
     const c: BayConfig = { workspaceRoot: ws, maxSlots: 9, configDir: ws, services: { api: { port: 6001, run: { test: ['echo'], migrate: ['echo'] } }, lms: { port: 6011 } } }
     expect(complete(c, ['bay', 'run', 'drill', 'api'])).toEqual(expect.arrayContaining(['test', 'migrate']))

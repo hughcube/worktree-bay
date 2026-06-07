@@ -35,6 +35,9 @@ worktree-bay completion install   # 一键装 shell 补全（可选）
 | `worktree-bay path <feature> <service>` | 打印某服务 worktree 的绝对路径（可 `cd $(worktree-bay path f api)`） |
 | `worktree-bay run <feature> <service> <name> [args...]` | 在某服务运行体里跑配置的 `run.<name>`（如 test），透传 args |
 | `worktree-bay sh <feature> <service>` | 进入某服务运行体的 shell |
+| `worktree-bay start <feature> [service]` | 启动该功能的 dev server（worktree 已在，只起 `start` 进程，不动 worktree） |
+| `worktree-bay stop <feature> [service]` | 停止该功能的 dev server（保留 worktree） |
+| `worktree-bay restart <feature> [service]` | 重启 dev server（停掉再起；改了配置/端口卡住时用） |
 | `worktree-bay down <feature> [-f]` | 拆除整个功能的所有服务 worktree（= `rm <feature>`） |
 | `worktree-bay rm <feature> [service] [-f]` | 拆除某服务或整槽。默认查脏/未推保护，`-f` 强删 |
 | `worktree-bay gc [--apply]` | 合并感知回收：默认 dry-run 只列建议，`--apply` 才删「已合并且干净」的 |

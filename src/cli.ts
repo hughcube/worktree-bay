@@ -7,6 +7,7 @@ import { lsCommand } from './commands/ls.js'
 import { addCommand, upCommand } from './commands/add.js'
 import { runCommand, shCommand, pathCommand } from './commands/passthrough.js'
 import { rmCommand } from './commands/rm.js'
+import { startCommand, stopCommand, restartCommand } from './commands/lifecycle.js'
 import { gcCommand } from './commands/gc.js'
 import { doctorCommand } from './commands/doctor.js'
 import { complete, completionCommand, installCompletion } from './commands/completion.js'
@@ -59,6 +60,12 @@ program.command('run <feature> <service> <name> [args...]').description(t('在�
   .action((f, s, n, args) => sync((c) => runCommand(c, f, s, n, args ?? [])))
 program.command('sh <feature> <service>').description(t('进入服务运行体的 shell', 'open a shell inside the service runtime'))
   .action((f, s) => sync((c) => shCommand(c, f, s)))
+program.command('start <feature> [service]').description(t('启动该功能的 dev server（worktree 已在，只起 start 进程，不动 worktree）', 'start the feature\'s dev server(s) (worktree already exists; runs the start process only)'))
+  .action(async (f, s) => { try { await startCommand(loadConfig(process.cwd()), f, s) } catch (e) { die((e as Error).message) } })
+program.command('stop <feature> [service]').description(t('停止该功能的 dev server（保留 worktree）', 'stop the feature\'s dev server(s) (keeps the worktree)'))
+  .action(async (f, s) => { try { await stopCommand(loadConfig(process.cwd()), f, s) } catch (e) { die((e as Error).message) } })
+program.command('restart <feature> [service]').description(t('重启该功能的 dev server（停掉再起）', 'restart the feature\'s dev server(s) (stop then start)'))
+  .action(async (f, s) => { try { await restartCommand(loadConfig(process.cwd()), f, s) } catch (e) { die((e as Error).message) } })
 program.command('down <feature>').description(t('拆除整个功能的所有服务 worktree（= rm <feature>）', 'tear down all of a feature\'s service worktrees (= rm <feature>)')).option('-f, --force', t('跳过脏/未推检查强制删除', 'skip dirty/unpushed checks and force-remove'))
   .action(async (f, o) => { try { await rmCommand(loadConfig(process.cwd()), f, undefined, !!o.force) } catch (e) { die((e as Error).message) } })
 program.command('rm <feature> [service]').description(t('拆除某服务或整槽的 worktree（默认查脏/未推保护）', 'remove one service\'s or the whole slot\'s worktree (dirty/unpushed protected by default)')).option('-f, --force', t('跳过脏/未推检查强制删除', 'skip dirty/unpushed checks and force-remove'))
