@@ -1,6 +1,6 @@
 {
   "name": "worktree-bay",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "Per-feature git worktree + port slots for parallel multi-service development: auto deps, env wiring, frontend-to-backend, merge-aware reclaim, plus an MCP server for AI agents.",
   "keywords": [
     "git",
