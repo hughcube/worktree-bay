@@ -4,7 +4,7 @@ import { BayConfig, Service, renderTemplate } from './config.js'
 import { portOf, isPortFree } from './ports.js'
 import { scanOccupancy } from './slots.js'
 import { addWorktree } from './git.js'
-import { runShell, run, spliceArgv, isTTY } from './util/exec.js'
+import { runShellLive, run, spliceArgv, isTTY } from './util/exec.js'
 import { warn, log } from './util/log.js'
 import { withProgress } from './util/progress.js'
 import { t } from './i18n.js'
@@ -52,8 +52,8 @@ export async function bringUp(ctx: AddCtx, base: string, branch: string): Promis
   }
   if (sp.setup) {
     const cmd = renderTemplate(sp.setup, vars)
-    log(t(`  → 执行 setup：${cmd}`, `  → running setup: ${cmd}`))
-    const r = runShell(cmd, { cwd: dir }); if (r.code !== 0) throw new Error(t(`setup 命令失败（退出码 ${r.code}）。查看上面的输出排查；修好后可重跑 add（已建的 worktree 会被复用，不会重复创建）。`, `setup command failed (exit code ${r.code}). Check the output above; after fixing, re-run add (the existing worktree is reused, not recreated).`))
+    const r = await runShellLive(cmd, { cwd: dir }, t(`setup：${cmd}`, `setup: ${cmd}`))
+    if (r.code !== 0) throw new Error(t(`setup 命令失败（退出码 ${r.code}）。完整输出见上；修好后可重跑 add（已建的 worktree 会被复用，不会重复创建）。`, `setup command failed (exit code ${r.code}). Full output is above; after fixing, re-run add (the existing worktree is reused, not recreated).`))
   }
   if (sp.start) log(t(`  启动: (cd ${dir} && ${renderTemplate(sp.start, vars)})`, `  start: (cd ${dir} && ${renderTemplate(sp.start, vars)})`))
 }

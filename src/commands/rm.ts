@@ -3,7 +3,7 @@ import { withLock } from '../lock.js'
 import { scanOccupancy, slotOfFeature, removeLabel, Occupant } from '../slots.js'
 import { buildVars } from '../engine.js'
 import { isDirty, hasUnpushed, currentBranch, removeWorktree } from '../git.js'
-import { runShell } from '../util/exec.js'
+import { runShellLive } from '../util/exec.js'
 import { log, warn } from '../util/log.js'
 import { t } from '../i18n.js'
 
@@ -18,7 +18,7 @@ export async function rmCommand(cfg: BayConfig, feature: string, service: string
       const repo = repoPath(cfg, o.service); const branch = currentBranch(o.dir)
       if (!force && (isDirty(o.dir) || hasUnpushed(repo, branch))) { warn(t(`跳过 ${o.service}：有未提交或未推送的改动。先提交/推送，或加 -f 强制删除（会丢这些改动）。`, `skipped ${o.service}: it has uncommitted or unpushed changes. Commit/push first, or pass -f to force-remove (discards them).`)); continue }
       const sp = cfg.services[o.service]
-      if (sp.teardown) { const vars = buildVars(cfg, { cfg, service: o.service, sp, slot: o.slot, slug: o.slug, dir: o.dir, repo }); runShell(renderTemplate(sp.teardown, vars), { cwd: repo }) }
+      if (sp.teardown) { const vars = buildVars(cfg, { cfg, service: o.service, sp, slot: o.slot, slug: o.slug, dir: o.dir, repo }); const cmd = renderTemplate(sp.teardown, vars); await runShellLive(cmd, { cwd: repo }, t(`teardown ${o.service}：${cmd}`, `teardown ${o.service}: ${cmd}`)) }
       removeWorktree(repo, o.dir, force); log(t(`✓ 移除 ${o.service}`, `✓ removed ${o.service}`)); removed++
     }
     const slot = slotOfFeature(cfg, feature)!

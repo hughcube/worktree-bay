@@ -3,7 +3,7 @@ import { withLock } from '../lock.js'
 import { scanOccupancy, pruneEmptyLabels, removeLabel } from '../slots.js'
 import { buildVars } from '../engine.js'
 import { currentBranch, isDirty, hasUnpushed, isMergedToMain, remoteBranchGone, removeWorktree } from '../git.js'
-import { runShell } from '../util/exec.js'
+import { runShellLive } from '../util/exec.js'
 import { log, warn } from '../util/log.js'
 import { t } from '../i18n.js'
 
@@ -20,7 +20,7 @@ export async function gcCommand(cfg: BayConfig, apply: boolean) {
       const v = classifyForGc({ merged: isMergedToMain(repo, branch), dirty: isDirty(o.dir), unpushed: hasUnpushed(repo, branch) })
       if (v === 'auto-remove') {
         log(t(`[gc] ${o.service} (槽 ${slot}) 已合并且干净 → 移除`, `[gc] ${o.service} (slot ${slot}) merged & clean → remove`))
-        if (apply) { const sp = cfg.services[o.service]; if (sp.teardown) { const vars = buildVars(cfg, { cfg, service: o.service, sp, slot, slug: o.slug, dir: o.dir, repo }); runShell(renderTemplate(sp.teardown, vars), { cwd: repo }) } removeWorktree(repo, o.dir, false) }
+        if (apply) { const sp = cfg.services[o.service]; if (sp.teardown) { const vars = buildVars(cfg, { cfg, service: o.service, sp, slot, slug: o.slug, dir: o.dir, repo }); const cmd = renderTemplate(sp.teardown, vars); await runShellLive(cmd, { cwd: repo }, t(`teardown ${o.service}：${cmd}`, `teardown ${o.service}: ${cmd}`)) } removeWorktree(repo, o.dir, false) }
       } else if (v === 'flag') warn(t(`[gc] ${o.service} (槽 ${slot}) 已合并但有脏/未推改动 → 跳过；确认无误后用 \`worktree-bay rm ${o.slug.replace(/^s\d+-/, '')} ${o.service} -f\` 删`, `[gc] ${o.service} (slot ${slot}) merged but dirty/unpushed → skipped; once sure, remove with \`worktree-bay rm <feature> ${o.service} -f\``))
       else if (remoteBranchGone(repo, branch)) warn(t(`[gc] ${o.service} (槽 ${slot}) 远端分支已删（疑似 squash 合并）→ 确认后用 \`worktree-bay down <功能>\` 拆`, `[gc] ${o.service} (slot ${slot}) remote branch gone (likely squash-merged) → once sure, tear down with \`worktree-bay down <feature>\``))
     }
