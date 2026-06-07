@@ -16,8 +16,9 @@ export async function removeWorktree(repo: string, dir: string, force: boolean):
   git(repo, ...a)   // 尽力移除；残留交给下面兜底（调用方已先过脏/未推保护，到这里删除是安全的）
   // git worktree remove 不会删被忽略的文件（前端 node_modules 等）→ 目录残留报 "Directory not empty"；
   // 它还可能先摘了登记再删目录失败，留下「git 不认但磁盘还在」的孤儿。统一兜底：物理删目录 + prune 同步元数据。
-  // 用异步 rm，让删 node_modules（可能数秒）时上层 spinner 能转。
-  if (fs.existsSync(dir)) await fs.promises.rm(dir, { recursive: true, force: true })
+  // 用异步 rm，让删 node_modules（可能数秒）时上层 spinner 能转；
+  // maxRetries 兜底 Windows 上刚杀进程、句柄尚未释放导致的 EBUSY/ENOTEMPTY。
+  if (fs.existsSync(dir)) await fs.promises.rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })
   git(repo, 'worktree', 'prune')
 }
 export function isDirty(dir: string): boolean { return ok(dir, 'status', '--porcelain').trim().length > 0 }

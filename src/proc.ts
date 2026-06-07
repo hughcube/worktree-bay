@@ -10,10 +10,28 @@ function regPath(ws: string): string { return path.join(ws, '.worktree-bay', 'pr
 export function readProcs(ws: string): ProcRec[] { const p = regPath(ws); try { return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : [] } catch { return [] } }
 function writeProcs(ws: string, recs: ProcRec[]): void { fs.mkdirSync(path.join(ws, '.worktree-bay'), { recursive: true }); fs.writeFileSync(regPath(ws), JSON.stringify(recs, null, 2) + '\n') }
 
-export function pidAlive(pid: number): boolean { try { process.kill(pid, 0); return true } catch { return false } }
+export function pidAlive(pid: number): boolean { if (!pid || pid < 1) return false; try { process.kill(pid, 0); return true } catch { return false } }
 export function recordedFor(ws: string, dir: string): ProcRec | undefined { return readProcs(ws).find((r) => r.dir === dir) }
+export function setPid(ws: string, dir: string, pid: number): void { const recs = readProcs(ws); const r = recs.find((x) => x.dir === dir); if (r) { r.pid = pid; writeProcs(ws, recs) } }
 export function readLogTail(file: string, lines = 15): string {
   try { return fs.readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean).slice(-lines).join('\n') } catch { return '' }
+}
+
+// 找出监听某端口的进程 pid（shell/pnpm 等中间层会让记录的 pid 漂移，按端口查最可靠）。
+export function pidOnPort(port: number): number | undefined {
+  if (process.platform === 'win32') {
+    const r = spawnSync('netstat', ['-ano', '-p', 'tcp'], { encoding: 'utf8' })
+    for (const line of (r.stdout || '').split(/\r?\n/)) {
+      const m = new RegExp(`[:.]${port}\\s+\\S+\\s+LISTENING\\s+(\\d+)`, 'i').exec(line)
+      if (m) return Number(m[1])
+    }
+    return undefined
+  }
+  let r = spawnSync('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN'], { encoding: 'utf8' })
+  if (r.status === 0 && r.stdout.trim()) { const pid = parseInt(r.stdout.trim().split(/\s+/)[0], 10); if (pid) return pid }
+  r = spawnSync('ss', ['-ltnp'], { encoding: 'utf8' })
+  if (r.status === 0) { const m = new RegExp(`:${port}\\s.*pid=(\\d+)`).exec(r.stdout || ''); if (m) return Number(m[1]) }
+  return undefined
 }
 
 export function startDetached(ws: string, dir: string, service: string, slug: string, port: number, cmd: string): ProcRec {
@@ -40,10 +58,14 @@ function killTree(pid: number): void {
 }
 
 // 停掉某 worktree 的托管进程（含进程树），并从账本移除。返回被停的记录（无则 undefined）。
+// 同时按「记录 pid」和「当前端口占用 pid」双杀——shell/pnpm 中间层会让记录 pid 漂移，按端口兜底最稳。
 export function stopManaged(ws: string, dir: string): ProcRec | undefined {
   const recs = readProcs(ws); const rec = recs.find((r) => r.dir === dir)
   if (!rec) return undefined
-  if (pidAlive(rec.pid)) killTree(rec.pid)
+  const targets = new Set<number>()
+  if (rec.pid > 0) targets.add(rec.pid)
+  const onPort = pidOnPort(rec.port); if (onPort) targets.add(onPort)
+  for (const pid of targets) if (pidAlive(pid)) killTree(pid)
   writeProcs(ws, recs.filter((r) => r.dir !== dir))
   return rec
 }
