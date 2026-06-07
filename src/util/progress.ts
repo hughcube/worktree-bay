@@ -1,5 +1,5 @@
 import { log } from './log.js'
-import { color as c } from './color.js'
+import { color as c, ttyLike } from './color.js'
 
 const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
 
@@ -8,7 +8,7 @@ const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '
 export async function withProgress<T>(label: string, fn: () => Promise<T>): Promise<T> {
   const t0 = Date.now()
   const secs = (): string => ((Date.now() - t0) / 1000).toFixed(1)
-  if (!process.stderr.isTTY) {
+  if (!ttyLike(process.stderr)) {
     log(`  → ${label} …`)
     const r = await fn()
     log(`  ${c.green('✓')} ${label}${c.dim(`（${secs()}s）`)}`)

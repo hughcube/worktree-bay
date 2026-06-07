@@ -63,7 +63,8 @@ export const TOOLS: Tool[] = [
 ]
 
 function runCli(args: string[]): string {
-  const r = spawnSync(process.execPath, [CLI, ...args], { encoding: 'utf8' })
+  // 强制非交互：给 AI 的输出不带颜色/spinner 控制符，保留完整日志
+  const r = spawnSync(process.execPath, [CLI, ...args], { encoding: 'utf8', env: { ...process.env, WORKTREE_BAY_NONINTERACTIVE: '1' } })
   return [r.stdout, r.stderr].filter(Boolean).join('\n').trim() || '(无输出)'
 }
 

@@ -1,6 +1,6 @@
 import { spawnSync, spawn } from 'node:child_process'
 import { t } from '../i18n.js'
-import { color as c } from './color.js'
+import { color as c, ttyLike } from './color.js'
 export interface RunResult { code: number }
 export function run(cmd: string, args: string[], opts: { cwd?: string } = {}): RunResult { const r = spawnSync(cmd, args, { cwd: opts.cwd, stdio: 'inherit', shell: false }); return { code: r.status ?? 1 } }
 export function runShell(line: string, opts: { cwd?: string } = {}): RunResult { const r = spawnSync(line, { cwd: opts.cwd, stdio: 'inherit', shell: true }); return { code: r.status ?? 1 } }
@@ -11,7 +11,7 @@ const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '�
 // 折叠式执行 setup/teardown 这类外部命令：TTY 下把输出收进单行临时进度（spinner + 秒数 + 最后一行），
 // 成功收成「✓ label（Ns）」，失败才吐完整日志便于排查；非 TTY（CI/管道/MCP）原样透传保留完整日志。
 export function runShellLive(line: string, opts: { cwd?: string }, label: string): Promise<RunResult> {
-  if (!process.stderr.isTTY) {
+  if (!ttyLike(process.stderr)) {
     const r = spawnSync(line, { cwd: opts.cwd, stdio: 'inherit', shell: true })
     return Promise.resolve({ code: r.status ?? 1 })
   }
