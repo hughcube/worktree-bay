@@ -7,7 +7,7 @@ import { addWorktree } from './git.js'
 import { runShellLive, run, spliceArgv, isTTY } from './util/exec.js'
 import { warn, log } from './util/log.js'
 import { withProgress } from './util/progress.js'
-import { startDetached, recordedFor, pidAlive } from './proc.js'
+import { startDetached, recordedFor, pidAlive, stopManaged, readLogTail } from './proc.js'
 import { t } from './i18n.js'
 
 export function mergeEnvText(text: string, kv: Record<string, string>): string {
@@ -67,8 +67,28 @@ export async function ensureStarted(ctx: AddCtx): Promise<void> {
   const rec = recordedFor(ws, dir)
   if (rec && pidAlive(rec.pid)) { log(t(`  • ${service} dev server 已在跑（pid ${rec.pid}，端口 ${port}）`, `  • ${service} dev server already running (pid ${rec.pid}, port ${port})`)); return }
   if (!(await isPortFree(port))) { log(t(`  • 端口 ${port} 已在监听，视为 ${service} dev server 在跑，跳过启动`, `  • port ${port} already listening; treating ${service} dev server as up, skip`)); return }
-  const r = startDetached(ws, dir, service, slug, port, renderTemplate(sp.start, vars))
-  log(t(`  ▸ 已后台启动 ${service} dev server（pid ${r.pid}，端口 ${port}）  日志: ${r.log}`, `  ▸ started ${service} dev server in background (pid ${r.pid}, port ${port})  log: ${r.log}`))
+  const cmd = renderTemplate(sp.start, vars)
+  const r = startDetached(ws, dir, service, slug, port, cmd)
+  // 验证没立刻挂：轮询 ~3s，端口起来=成功，pid 没了=启动失败（命令多半不对）
+  const alive = await waitStartup(r.pid, port, 3000)
+  if (alive) {
+    log(t(`  ▸ 已后台启动 ${service} dev server（pid ${r.pid}，端口 ${port}）  日志: ${r.log}`, `  ▸ started ${service} dev server in background (pid ${r.pid}, port ${port})  log: ${r.log}`))
+  } else {
+    stopManaged(ws, dir)   // 进程已死，清掉登记，别留假状态
+    const tail = readLogTail(r.log)
+    warn(t(`  ✗ ${service} dev server 启动后立即退出——start 命令多半不对。\n     命令: ${cmd}\n     请在 worktree 里手动跑一遍排查: cd ${dir} && ${cmd}\n     日志(${r.log}):\n${tail || '（空）'}`,
+           `  ✗ ${service} dev server exited immediately — the start command is likely wrong.\n     command: ${cmd}\n     reproduce in the worktree: cd ${dir} && ${cmd}\n     log (${r.log}):\n${tail || '(empty)'}`))
+  }
+}
+// 端口起来→true（成功）；pid 死了→false（崩了）；超时仍存活→true（还在启动，如 vite 冷启动较慢）
+async function waitStartup(pid: number, port: number, ms: number): Promise<boolean> {
+  const end = Date.now() + ms
+  for (;;) {
+    if (!pidAlive(pid)) return false
+    if (!(await isPortFree(port))) return true
+    if (Date.now() >= end) return pidAlive(pid)
+    await new Promise((r) => setTimeout(r, 150))
+  }
 }
 
 export function execArgv(ctx: { sp: Service; vars: Record<string, string | number> }, cmd: string[]): string[] {

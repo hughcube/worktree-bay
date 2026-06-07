@@ -12,6 +12,9 @@ function writeProcs(ws: string, recs: ProcRec[]): void { fs.mkdirSync(path.join(
 
 export function pidAlive(pid: number): boolean { try { process.kill(pid, 0); return true } catch { return false } }
 export function recordedFor(ws: string, dir: string): ProcRec | undefined { return readProcs(ws).find((r) => r.dir === dir) }
+export function readLogTail(file: string, lines = 15): string {
+  try { return fs.readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean).slice(-lines).join('\n') } catch { return '' }
+}
 
 export function startDetached(ws: string, dir: string, service: string, slug: string, port: number, cmd: string): ProcRec {
   const logDir = path.join(ws, '.worktree-bay', 'logs'); fs.mkdirSync(logDir, { recursive: true })
