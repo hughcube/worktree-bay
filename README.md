@@ -5,7 +5,7 @@
 
 > 配置驱动、与语言/技术栈无关的 **git worktree 槽位 + 端口编排器**——为多服务并行开发而生。
 
-一个功能来了，先**占一个槽位**，用到哪个服务就在哪个服务开一个 worktree 挂进这个槽。同一槽里的所有服务共享一套**端口块**、各自独立进程，前端自动接上同槽的后端。工具替你管好 worktree 路径、端口分配、依赖、`.env` 注入与回收。
+一个功能来了，先**占一个槽位 `N`**，用到哪个服务就在哪个服务开一个 worktree 挂进这个槽。每个服务有自己的**端口段**，同槽的各服务都取段里的第 `N` 个端口（`服务基址 + N`）、各自独立进程，前端自动接上同槽的后端。工具替你管好 worktree 路径、端口分配、依赖、`.env` 注入与回收。
 
 ## 为什么
 
@@ -126,7 +126,7 @@ worktree-bay completion install
 }
 ```
 
-> 服务在哪个工作区目录启动，就用哪个目录的 `worktree-bay.config.json`（或设 `WORKTREE_BAY_CONFIG`）。暴露的工具：`worktree_bay_up / ls / add / run / down / gc`。
+> 服务在哪个工作区目录启动，就用哪个目录的 `worktree-bay.config.json`（或设 `WORKTREE_BAY_CONFIG`）。暴露的工具：`worktree_bay_up / ls / add / path / run / down / gc / skill`（`ls` 以 JSON 返回各 worktree 路径，`path` 直接给某功能某服务的目录，`skill` 取完整指南）。
 
 ## 许可证
 

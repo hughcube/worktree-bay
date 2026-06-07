@@ -32,7 +32,7 @@ const sync = (fn: (c: BayConfig) => void) => { try { fn(loadConfig(process.cwd()
 
 program.command('init').description('在当前工作区生成 worktree-bay.config.json（扫描子 git 仓预填服务）')
   .action(() => { try { initCommand(process.cwd()) } catch (e) { die((e as Error).message) } })
-program.command('claim <feature>').description('为功能占一个槽位（端口块）')
+program.command('claim <feature>').description('为功能占一个槽位（打印各服务在该槽的端口）')
   .action(async (f) => { try { await claimCommand(loadConfig(process.cwd()), f) } catch (e) { die((e as Error).message) } })
 program.command('ls').description('列出所有槽位与占用状态').option('--json', '以 JSON 输出（含 worktree 路径，便于脚本/AI 消费）')
   .action((o) => sync((c) => lsCommand(c, !!o.json)))

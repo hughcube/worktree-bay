@@ -4,7 +4,7 @@
 - 范围：workspace 级（rqapp 元仓库 + 各子项目）
 - 状态：设计定稿（经自审 R1–R5 + Codex 对抗评审两轮）
 
-## 1. 背景与痛点
+> ⚠️ **演进说明（已部分过时）**：本文是落地前的原始设计稿，**端口模型已变更**。当前实现改为「**按服务分段**」：每个服务有自己的端口段，基址 `service.port` = 主 dev/槽0，某服务在槽 N 的端口 = `service.port + N`；不再有 `portBase` / `slotSpan` / `offset` / `{blockBase}` / 「端口块」这些概念，服务数量也不再受 `slotSpan` 限制。下文 §2 端口块方案、§3.1 配置 schema、§3.4 模板变量等仍是旧模型，仅作历史参考——**以 `README.md`、`skill.md` 与源码为准**。
 
 燃典教务平台是多子项目工作区：后端 `api/`，前端 `lms / console / csp / pc / h5`。一个功能常跨多个子项目同时改。当前用 git worktree 并行开发时存在两类问题：
 

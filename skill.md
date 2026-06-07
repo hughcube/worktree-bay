@@ -4,8 +4,8 @@
 
 ## 核心模型：功能 = 槽位
 
-- 一个**功能**认领一个**槽位 `N`**（1..maxSlots）→ 得到一个**端口块** `portBase + N*slotSpan`。
-- 功能用到哪些**服务**，就在哪些服务各开一个 **git worktree** 挂进这个槽；块内每个服务按自己的 `offset` 取一个端口，互不相撞。
+- 每个**服务**有自己的**端口段**：基址 `port` 就是它的主 dev 端口（= 槽 0），段为 `[port, port+maxSlots]`。
+- 一个**功能**认领一个**槽位 `N`**（1..maxSlots）；功能用到哪些**服务**，就在那些服务各开一个 **git worktree** 挂进这个槽，该服务在本槽的端口 = `service.port + N`，与主 dev（槽 0）和其它槽天然错开、互不相撞。
 - 同槽的前端服务自动把 api base 指向同槽的后端端口。
 - 槽位占用从文件系统派生（看 `<repo>/.worktrees/s<N>-*` 是否存在），删了 worktree 槽自动空出。
 
@@ -27,9 +27,9 @@ worktree-bay completion install   # 一键装 shell 补全（可选）
 | `worktree-bay init` | 在当前工作区生成 `worktree-bay.config.json`（扫描子 git 仓预填服务） |
 | `worktree-bay doctor` | 体检：git 是否可用、配置是否有效、各服务仓是否就绪 |
 | `worktree-bay up <feature> <service...>` | **最常用**：一条命令为功能起多个服务（自动占槽 + 各服务开 worktree，分支默认 = 功能名） |
-| `worktree-bay claim <feature>` | 只占一个槽、打印端口块（不开 worktree） |
+| `worktree-bay claim <feature>` | 只占一个槽、打印各服务在该槽的端口（不开 worktree） |
 | `worktree-bay add <feature> <service> [branch] [base]` | 为功能在单个服务开 worktree。`branch` 省略 = 功能名；`base` 省略 = `origin/<主分支>` |
-| `worktree-bay ls [--json]` | 列出所有槽位：功能名、端口块、已起服务及端口、是否已并入主分支；`--json` 输出结构化数据（含 worktree 路径） |
+| `worktree-bay ls [--json]` | 列出所有槽位：功能名、已起服务及端口；`--json` 输出结构化数据（含 worktree 绝对路径，便于脚本/AI 消费）。合并状态由 `gc` 判定，`ls` 不查（避免每次都 `git fetch`） |
 | `worktree-bay path <feature> <service>` | 打印某服务 worktree 的绝对路径（可 `cd $(worktree-bay path f api)`） |
 | `worktree-bay run <feature> <service> <name> [args...]` | 在某服务运行体里跑配置的 `run.<name>`（如 test），透传 args |
 | `worktree-bay sh <feature> <service>` | 进入某服务运行体的 shell |
@@ -152,7 +152,7 @@ worktree-bay gc                        # 回收已合并的
 
 ## 给 AI（MCP）
 
-`worktree-bay mcp` 暴露工具：`worktree_bay_up / ls / add / run / down / gc / skill`。要写或修改 `worktree-bay.config.json`、或拿不准命令/配置细节时，调用 `worktree_bay_skill` 取本指南全文。
+`worktree-bay mcp` 暴露工具：`worktree_bay_up / ls / add / path / run / down / gc / skill`。`ls` 以 JSON 返回（含各 worktree 绝对路径），`path` 直接给某功能某服务的 worktree 目录——拿到路径后即可进去改代码。要写或修改 `worktree-bay.config.json`、或拿不准命令/配置细节时，调用 `worktree_bay_skill` 取本指南全文。
 
 ## 常见坑
 
