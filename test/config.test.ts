@@ -34,4 +34,23 @@ describe('config', () => {
     const saved = process.env.WORKTREE_BAY_CONFIG; delete process.env.WORKTREE_BAY_CONFIG
     try { expect(loadConfig(sub).services.api.port).toBe(6001) } finally { if (saved !== undefined) process.env.WORKTREE_BAY_CONFIG = saved }
   })
+  it('workspaceRoot 非必选：省略时默认 config 所在目录', () => {
+    const v: any = VALID(); delete v.workspaceRoot
+    const c = parseConfig(write(v))
+    expect(c.workspaceRoot).toBe(path.resolve(dir))
+    expect(repoPath(c, 'api')).toBe(path.join(dir, 'api'))
+  })
+  it('workspaceRoot 相对路径：相对 config 目录解析', () => {
+    const v: any = VALID(); v.workspaceRoot = '.'
+    const c = parseConfig(write(v))
+    expect(c.workspaceRoot).toBe(path.resolve(dir))
+    expect(repoPath(c, 'api')).toBe(path.join(dir, 'api'))
+  })
+  it('workspaceRoot 相对路径：不受进程 cwd 影响', () => {
+    const v: any = VALID(); v.workspaceRoot = '.'
+    const p = write(v)
+    const savedCwd = process.cwd(); const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'bayelse-'))
+    try { process.chdir(elsewhere); const c = parseConfig(p); expect(repoPath(c, 'api')).toBe(path.join(dir, 'api')) }
+    finally { process.chdir(savedCwd); fs.rmSync(elsewhere, { recursive: true, force: true }) }
+  })
 })

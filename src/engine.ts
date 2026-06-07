@@ -100,11 +100,25 @@ export async function ensureRuntime(ctx: AddCtx): Promise<void> {
   await ensureStarted(ctx)
 }
 // 停止运行体：杀 managed dev server + 跑 stop 钩子（docker compose stop）。不动 worktree。
+// 始终给每个服务输出一行状态——哪怕本就没在跑（否则只剩一个裸服务名，看不出结果）。
+// 用端口实判：docker 容器停了端口即释放、dev server 同理，比「有没有 managed 记录」更准，
+// 据此给出诚实状态（本就空闲 / 外部未托管 / 未在运行），不让一个绿勾掩盖「其实没东西在跑」。
 export async function stopRuntime(ctx: AddCtx): Promise<void> {
   const { cfg, sp, dir, service, vars } = ctx
+  const port = Number(vars.port)
+  const wasUp = await portInUse(port)
   const stopped = stopManaged(cfg.workspaceRoot, dir)
   if (stopped) log(`  ${cc.green('✓')} ` + t(`已停止 dev server（pid ${stopped.pid}）`, `stopped dev server (pid ${stopped.pid})`))
-  if (sp.stop) { const cmd = renderTemplate(sp.stop, vars); await runShellLive(cmd, { cwd: dir }, t(`停 ${service}：${cmd}`, `stop ${service}: ${cmd}`)) }
+  if (sp.stop) {
+    // stop 钩子始终跑（docker compose stop 幂等，且能收掉 app 端口没监听、但 mysql/redis 等边车还在的情况）。
+    const cmd = renderTemplate(sp.stop, vars)
+    await runShellLive(cmd, { cwd: dir }, t(`停 ${service}：${cmd}`, `stop ${service}: ${cmd}`))
+    if (!wasUp) log(`  ${cc.dim('•')} ` + t(`（端口 ${port} 此前空闲，${service} 实际并未在对外服务）`, `(port ${port} was idle; ${service} wasn't actually serving)`))
+  }
+  if (!stopped && !sp.stop) {
+    if (wasUp) log(`  ${cc.yellow('•')} ` + t(`端口 ${port} 仍被占用（外部启动、未托管），请手动停止`, `port ${port} in use (external, unmanaged); stop manually`))
+    else log(`  ${cc.dim('•')} ` + t('未在运行', 'not running'))
+  }
 }
 
 export function execArgv(ctx: { sp: Service; vars: Record<string, string | number> }, cmd: string[]): string[] {

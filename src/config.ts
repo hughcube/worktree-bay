@@ -9,13 +9,17 @@ function refs(tpl: string): string[] { return [...tpl.matchAll(/\{(\w+)\}/g)].ma
 
 export function parseConfig(configPath: string): BayConfig {
   const raw = JSON.parse(fs.readFileSync(configPath, 'utf8'))
-  for (const k of ['workspaceRoot', 'maxSlots']) if (raw[k] === undefined) throw new Error(t(`config: 缺少必填字段 ${k}`, `config: ${k} required`))
+  if (raw.maxSlots === undefined) throw new Error(t('config: 缺少必填字段 maxSlots', 'config: maxSlots required'))
+  const configDir = path.dirname(configPath)
+  // workspaceRoot 非必选，默认当前目录（= config 所在目录）；相对路径相对 config 目录解析，
+  // 已是绝对路径时 path.resolve 原样返回（向后兼容，且不再受进程 cwd 影响）
+  const workspaceRoot = path.resolve(configDir, raw.workspaceRoot ?? '.')
   const maxSlots: number = raw.maxSlots
   const services: Record<string, Service> = raw.services ?? {}
   // 端口段：每个服务 [port, port+maxSlots]（port=主 dev/槽0，槽 1..maxSlots 落在段内）
   for (const [name, sp] of Object.entries<Service>(services)) {
     if (typeof sp.port !== 'number' || sp.port < 1) throw new Error(t(`config: ${name}.port 必须是正整数`, `config: ${name}.port must be a positive number`))  // V2
-    const repoDir = path.join(raw.workspaceRoot, sp.repo ?? name)
+    const repoDir = path.join(workspaceRoot, sp.repo ?? name)
     if (!fs.existsSync(repoDir)) throw new Error(t(`config: ${name}.repo 目录不存在: ${repoDir}（检查 workspaceRoot 与 repo 名，或先 git clone）`, `config: ${name}.repo dir missing: ${repoDir} (check workspaceRoot and the repo name, or clone it first)`))  // V5
   }
   const entries = Object.entries<Service>(services)
@@ -25,7 +29,7 @@ export function parseConfig(configPath: string): BayConfig {
   for (const [name, sp] of Object.entries<Service>(services)) if (sp.upstream && !services[sp.upstream.service]) throw new Error(t(`config: ${name}.upstream.service '${sp.upstream.service}' 不存在于 services（写成已声明的服务名）`, `config: ${name}.upstream.service '${sp.upstream.service}' not found in services (use a declared service name)`))  // V3
   const known = new Set(['slot', 'port', 'slug', 'worktree', 'repo', 'upstreamBase', 'cmd'])                          // V4
   for (const sp of Object.values(services)) for (const v of Object.values(sp.vars ?? {})) for (const ref of refs(v)) if (!known.has(ref) && !(sp.vars && ref in sp.vars)) throw new Error(t(`config: 未知模板变量 {${ref}}（只能引用内置变量或本服务 vars 里已声明的）`, `config: unknown template var {${ref}} (only built-in vars or this service's declared vars are allowed)`))
-  return { workspaceRoot: raw.workspaceRoot, maxSlots, services, configDir: path.dirname(configPath) }
+  return { workspaceRoot, maxSlots, services, configDir }
 }
 
 export function loadConfig(startDir: string): BayConfig {

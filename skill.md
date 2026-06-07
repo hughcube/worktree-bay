@@ -66,7 +66,7 @@ worktree-bay gc                        # 回收已合并的
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `workspaceRoot` | string | 工作区根绝对路径，各服务仓在其下 |
+| `workspaceRoot` | string | **非必选**，工作区根，各服务仓在其下；**默认 = config 文件所在目录**（即省略时等同 `"."`）。可填相对路径（相对 config 目录解析，不受进程 cwd 影响）或绝对路径 |
 | `maxSlots` | number | 最大并行功能数（每个服务预留 `maxSlots` 个端口），如 `9` |
 | `services` | object | 服务名 → 服务定义（见下） |
 
@@ -85,7 +85,7 @@ worktree-bay gc                        # 回收已合并的
 | `upstream` | | object | 声明依赖的上游服务：`{ "service": "api", "fallback": "http://localhost:6001" }`，产出 `{upstreamBase}` 变量 |
 | `setup` | | string | 挂入后执行的 shell 命令（创建/装好运行体，如 `docker compose up -d`、`pnpm install`）。`up` 时跑 |
 | `teardown` | | string | 拆除时执行的 shell 命令（销毁运行体，如 `docker compose down -v`）。`down`/`rm`/`gc` 时跑 |
-| `start` | | string | 长进程 dev server（如 `pnpm dev`）。`up` 时**自动后台启动**（detach + 日志落 `.worktree-bay/logs/`），按端口追踪 pid；由 `start`/`stop`/`restart` 控制，`ls` 标 `▸run` |
+| `start` | | string | 长进程 dev server（如 `pnpm dev`）。`up` 时**自动后台启动**（detach + 日志落 `.worktree-bay/logs/`），按端口追踪 pid；由 `start`/`stop`/`restart` 控制，`ls` 行首 `●` 标在跑（绿）/未跑（灰） |
 | `stop` | | string | 停止该服务 infra 运行体的 shell（如 `docker compose stop`）。供 `stop`/`restart` 用——让 docker 容器能「停而不毁」；`start` 时对配了它的服务重跑 `setup` 幂等恢复 |
 | `exec` | | string[] | 透传命令模板（argv 数组），`{cmd...}` 是 argv splice 占位，防 shell 注入。如 `["docker","exec","-i","{project}-app-1","{cmd...}"]` |
 | `run` | | object | 命名命令：`{ "test": ["composer","run","test"] }`，供 `worktree-bay run <feature> <service> test` 调用 |
@@ -162,7 +162,8 @@ worktree-bay gc                        # 回收已合并的
 ## 工作原理要点
 
 - **占用真相 = 文件系统**：扫各服务 `.worktrees/s<N>-*`；`.worktree-bay-slots.json` 只是「功能名→槽号」标签账本（预约）。
-- **dev server 托管**：`start` 进程后台 detach 启动、日志落 `.worktree-bay/logs/`、按端口追踪真实 pid；`ls` 标 `▸run`；`stop`/`down` 按端口可靠停。
+- **dev server 托管**：`start` 进程后台 detach 启动、日志落 `.worktree-bay/logs/`、按端口追踪真实 pid；`ls` 行首 `●` 标在跑（绿）/未跑（灰）；`stop`/`down` 按端口可靠停。
+- **运行状态判断 = 端口**：`ls` 的 `running`、`stop` 的「是否真在跑」一律按约定端口是否被监听判（覆盖 docker / 托管 dev server / 外部手起三类），不依赖 pid 账本（dir 形态会漂移、docker 无账本记录）。`stop` 对每个服务都给状态：已停 / 端口空闲（docker 钩子仍幂等跑一遍）/ 外部未托管需手动停。
 - **并发安全**：`claim/add/up/rm/down/gc` 全程持工作区原子锁。
 - **前端自接后端**：前端有 `upstream` 且同槽该上游服务的 worktree 已建，则 `{upstreamBase}` = 本槽上游端口；否则用 `fallback`。所以**联调时先 `up`/`add` 后端，再起前端**。
 - **合并感知回收**：`gc` 先 `git fetch`，用 `merge-base --is-ancestor` 判断是否并入主分支；**只在「已合并 + 工作区干净 + 无未推」时才自动删**，判不准一律保守不删、只标记。
@@ -171,7 +172,7 @@ worktree-bay gc                        # 回收已合并的
 
 ## 给 AI（MCP）
 
-`worktree-bay mcp` 暴露工具：`worktree_bay_doctor / ls / up / claim / add / path / run / start / stop / restart / down / gc / init / skill`。`doctor` 列出全部服务（AI 借此得知服务名）；`ls` 以 JSON 返回（含各 worktree 绝对路径、`▸run`）；`path` 给某功能某服务的 worktree 目录；`start/stop/restart` 控制运行体（docker+node）；`down` 省略 services 拆整功能、给 services 只拆这些。要写或修改 `worktree-bay.config.json`、或拿不准命令/配置细节时，调用 `worktree_bay_skill` 取本指南全文。
+`worktree-bay mcp` 暴露工具：`worktree_bay_doctor / ls / up / claim / add / path / run / start / stop / restart / down / gc / init / skill`。`doctor` 列出全部服务（AI 借此得知服务名）；`ls` 以 JSON 返回 `[{slot, feature(可 null), services:[{service, port, dir, running}]}]`（含各 worktree 绝对路径、布尔 `running`）；`path` 给某功能某服务的 worktree 目录；`start/stop/restart` 控制运行体（docker+node）；`down` 省略 services 拆整功能、给 services 只拆这些。要写或修改 `worktree-bay.config.json`、或拿不准命令/配置细节时，调用 `worktree_bay_skill` 取本指南全文。
 
 ## 常见坑
 
