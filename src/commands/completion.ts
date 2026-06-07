@@ -7,9 +7,10 @@ import { log } from '../util/log.js'
 
 const SUBCMDS = ['init', 'doctor', 'claim', 'up', 'add', 'ls', 'path', 'gc', 'down', 'rm', 'run', 'sh', 'completion', 'mcp', 'skill', 'version', 'help']
 // words = 命令名 + 光标前已输入完的词（不含当前正在补的词）
-export function complete(cfg: BayConfig, words: string[]): string[] {
+export function complete(cfg: BayConfig | null, words: string[]): string[] {
   const prev = words.slice(1)
   if (prev.length === 0) return SUBCMDS
+  if (!cfg) return []   // 无配置（不在工作区内）：子命令已补全，feature/service 无从读取
   const sub = prev[0]; const pos = prev.length
   const featureSubs = ['up', 'add', 'rm', 'down', 'run', 'sh', 'path']
   if (featureSubs.includes(sub) && pos === 1) return Object.values(readLabels(cfg))
@@ -20,7 +21,8 @@ export function complete(cfg: BayConfig, words: string[]): string[] {
 export function completionScript(shell: string): string {
   // 脚本只传"光标前已完成的词"，不含当前正在补的词，与 complete() 的模型一致
   if (shell === 'bash') return `_worktree_bay(){ COMPREPLY=( $(worktree-bay __complete -- "\${COMP_WORDS[@]:0:\$COMP_CWORD}") ); }\ncomplete -F _worktree_bay worktree-bay`
-  if (shell === 'zsh') return `#compdef worktree-bay\n_worktree_bay(){ compadd -- $(worktree-bay __complete -- "\${(@)words[1,CURRENT-1]}") }\ncompdef _worktree_bay worktree-bay`
+  // zsh 默认不对 $(...) 做单词分割，必须用 ${(f)...} 按行拆成多个候选，否则多行输出会变成单个候选
+  if (shell === 'zsh') return `#compdef worktree-bay\n_worktree_bay(){ compadd -- \${(f)"$(worktree-bay __complete -- "\${(@)words[1,CURRENT-1]}")"} }\ncompdef _worktree_bay worktree-bay`
   if (shell === 'fish') return `complete -c worktree-bay -f -a '(worktree-bay __complete -- (commandline -opc))'`
   throw new Error('unsupported shell: ' + shell)
 }

@@ -1,9 +1,17 @@
 import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
 function git(repo: string, ...a: string[]) { return spawnSync('git', ['-C', repo, ...a], { encoding: 'utf8' }) }
 function ok(repo: string, ...a: string[]): string { const r = git(repo, ...a); if (r.status !== 0) throw new Error(`git ${a.join(' ')}: ${r.stderr || r.stdout}`); return r.stdout }
 
 export function addWorktree(repo: string, dir: string, branch: string, base: string) { ok(repo, 'worktree', 'add', '-b', branch, dir, base) }
-export function removeWorktree(repo: string, dir: string, force: boolean) { const a = ['worktree', 'remove', dir]; if (force) a.push('--force'); const r = git(repo, ...a); if (r.status !== 0) throw new Error('worktree remove: ' + (r.stderr || r.stdout)); git(repo, 'worktree', 'prune') }
+export function removeWorktree(repo: string, dir: string, force: boolean) {
+  const a = ['worktree', 'remove', dir]; if (force) a.push('--force')
+  git(repo, ...a)   // 尽力移除；残留交给下面兜底（调用方已先过脏/未推保护，到这里删除是安全的）
+  // git worktree remove 不会删被忽略的文件（前端 node_modules 等）→ 目录残留报 "Directory not empty"；
+  // 它还可能先摘了登记再删目录失败，留下「git 不认但磁盘还在」的孤儿。统一兜底：物理删目录 + prune 同步元数据。
+  if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true })
+  git(repo, 'worktree', 'prune')
+}
 export function isDirty(dir: string): boolean { return ok(dir, 'status', '--porcelain').trim().length > 0 }
 export function currentBranch(dir: string): string { return ok(dir, 'rev-parse', '--abbrev-ref', 'HEAD').trim() }
 export function mainBranch(repo: string): string {

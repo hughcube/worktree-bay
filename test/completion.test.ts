@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'
 import type { BayConfig } from '../src/config.js'
-import { complete } from '../src/commands/completion.js'
+import { complete, completionScript } from '../src/commands/completion.js'
 import { claim } from '../src/slots.js'
 
 let ws: string; let cfg: BayConfig
@@ -19,4 +19,14 @@ describe('completion', () => {
     expect(complete(cfg, ['bay', 'path'])).toContain('drill')
     expect(complete(cfg, ['bay', 'path', 'drill'])).toEqual(expect.arrayContaining(['api', 'lms']))
   })
+  it('无配置（cfg=null）仍补全子命令，但补不出 feature/service', () => {
+    expect(complete(null, ['bay'])).toEqual(expect.arrayContaining(['up', 'add', 'down']))
+    expect(complete(null, ['bay', 'add'])).toEqual([])
+    expect(complete(null, ['bay', 'add', 'drill'])).toEqual([])
+  })
+  it('zsh 脚本用 ${(f)...} 按行分割候选（zsh 不做单词分割）', () => {
+    expect(completionScript('zsh')).toContain('${(f)')
+    expect(completionScript('zsh')).toContain('compdef _worktree_bay')
+  })
+  it('bash 脚本用 COMPREPLY 数组', () => expect(completionScript('bash')).toContain('COMPREPLY'))
 })
