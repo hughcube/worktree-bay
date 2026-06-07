@@ -7,6 +7,7 @@ import { addWorktree } from './git.js'
 import { runShellLive, run, spliceArgv, isTTY } from './util/exec.js'
 import { warn, log } from './util/log.js'
 import { withProgress } from './util/progress.js'
+import { startDetached, recordedFor, pidAlive } from './proc.js'
 import { t } from './i18n.js'
 
 export function mergeEnvText(text: string, kv: Record<string, string>): string {
@@ -38,7 +39,7 @@ export async function bringUp(ctx: AddCtx, base: string, branch: string): Promis
   for (const rel of sp.copy ?? []) {
     // dereference: vendor/node_modules 含符号链接，Windows 下原样复制符号链接会失败，跟随并拷目标内容。
     // 用异步 cp + spinner，让大目录（如 vendor ~238MB）拷贝时不像卡死。
-    await withProgress(t(`从主 checkout 拷贝 ${rel}（首次较慢）`, `copying ${rel} from main checkout (first time is slow)`), () =>
+    await withProgress(t(`拷贝 ${rel}`, `copying ${rel}`), () =>
       fs.promises.cp(path.join(repo, rel), path.join(dir, rel), { recursive: true, dereference: true }))
     for (const lock of ['composer.lock', 'pnpm-lock.yaml', 'package-lock.json']) {
       const a = path.join(repo, lock), b = path.join(dir, lock)
@@ -55,7 +56,19 @@ export async function bringUp(ctx: AddCtx, base: string, branch: string): Promis
     const r = await runShellLive(cmd, { cwd: dir }, t(`setup：${cmd}`, `setup: ${cmd}`))
     if (r.code !== 0) throw new Error(t(`setup 命令失败（退出码 ${r.code}）。完整输出见上；修好后可重跑 add（已建的 worktree 会被复用，不会重复创建）。`, `setup command failed (exit code ${r.code}). Full output is above; after fixing, re-run add (the existing worktree is reused, not recreated).`))
   }
-  if (sp.start) log(t(`  启动: (cd ${dir} && ${renderTemplate(sp.start, vars)})`, `  start: (cd ${dir} && ${renderTemplate(sp.start, vars)})`))
+}
+
+// 托管启动 dev server（start）：端口已在监听 / 已登记进程存活 → 跳过；否则后台 detach 启动并登记。
+// 让 up 可重入（再跑一次只补起没在跑的），并由 down 负责停。
+export async function ensureStarted(ctx: AddCtx): Promise<void> {
+  const { cfg, sp, dir, service, slug, vars } = ctx
+  if (!sp.start) return
+  const ws = cfg.workspaceRoot, port = Number(vars.port)
+  const rec = recordedFor(ws, dir)
+  if (rec && pidAlive(rec.pid)) { log(t(`  • ${service} dev server 已在跑（pid ${rec.pid}，端口 ${port}）`, `  • ${service} dev server already running (pid ${rec.pid}, port ${port})`)); return }
+  if (!(await isPortFree(port))) { log(t(`  • 端口 ${port} 已在监听，视为 ${service} dev server 在跑，跳过启动`, `  • port ${port} already listening; treating ${service} dev server as up, skip`)); return }
+  const r = startDetached(ws, dir, service, slug, port, renderTemplate(sp.start, vars))
+  log(t(`  ▸ 已后台启动 ${service} dev server（pid ${r.pid}，端口 ${port}）  日志: ${r.log}`, `  ▸ started ${service} dev server in background (pid ${r.pid}, port ${port})  log: ${r.log}`))
 }
 
 export function execArgv(ctx: { sp: Service; vars: Record<string, string | number> }, cmd: string[]): string[] {

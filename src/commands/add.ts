@@ -4,9 +4,9 @@ import { BayConfig, repoPath } from '../config.js'
 import { withLock } from '../lock.js'
 import { claim } from '../slots.js'
 import { slugify, worktreeDirName } from '../naming.js'
-import { AddCtx, buildVars, bringUp } from '../engine.js'
+import { AddCtx, buildVars, bringUp, ensureStarted } from '../engine.js'
 import { mainBranch } from '../git.js'
-import { log, warn } from '../util/log.js'
+import { log } from '../util/log.js'
 import { t } from '../i18n.js'
 
 export interface AddPlan { service: string; slot: number; slug: string; dir: string; repo: string }
@@ -19,12 +19,13 @@ export async function addCommand(cfg: BayConfig, feature: string, service: strin
   const br = branch || feature   // 默认分支 = 功能名
   await withLock(cfg.workspaceRoot, async () => {
     const p = resolveAdd(cfg, feature, service, br); const sp = cfg.services[service]
-    if (fs.existsSync(p.dir)) {   // 幂等：该服务已在本功能下开过 worktree → 跳过（让 up 可安全重跑）
-      warn(t(`• ${service} 已在功能 "${feature}"（槽 ${p.slot}），跳过。要重建先 \`worktree-bay rm ${feature} ${service}\`。`, `• ${service} already in "${feature}" (slot ${p.slot}), skipping. To recreate: \`worktree-bay rm ${feature} ${service}\`.`))
-      return
-    }
     const ctxBase = { cfg, service, sp, slot: p.slot, slug: p.slug, dir: p.dir, repo: p.repo }
     const ctx: AddCtx = { ...ctxBase, vars: buildVars(cfg, ctxBase) }
+    if (fs.existsSync(p.dir)) {   // 幂等重入：worktree 已在 → 不重建/不重跑 setup，但确保 dev server 在跑
+      log(t(`  • 已就绪（槽 ${p.slot}，端口 ${ctx.vars.port}）`, `  • ready (slot ${p.slot}, port ${ctx.vars.port})`))
+      await ensureStarted(ctx)
+      return
+    }
     const resolvedBase = base ?? `origin/${mainBranch(p.repo)}`
     try {
       await bringUp(ctx, resolvedBase, br)
@@ -34,6 +35,7 @@ export async function addCommand(cfg: BayConfig, feature: string, service: strin
         throw new Error(t(`基分支「${resolvedBase}」无效（该仓可能没有 origin 或对应主分支）。给 add 显式传 base，例如：worktree-bay add ${feature} ${service} ${br} HEAD`, `invalid base ref "${resolvedBase}" (this repo may have no origin or main branch). Pass an explicit base to add, e.g.: worktree-bay add ${feature} ${service} ${br} HEAD`))
       throw e
     }
+    await ensureStarted(ctx)
     log(t(`✓ ${service} 挂入 "${feature}"（槽 ${p.slot}，端口 ${ctx.vars.port}，分支 ${br}）`, `✓ ${service} added to "${feature}" (slot ${p.slot}, port ${ctx.vars.port}, branch ${br})`))
   })
 }

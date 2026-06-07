@@ -14,12 +14,12 @@ beforeEach(() => {
 afterEach(() => { for (const d of [origin, clone]) fs.rmSync(d, { recursive: true, force: true }) })
 
 describe('git', () => {
-  it('addWorktree -b + isDirty + remove', () => {
+  it('addWorktree -b + isDirty + remove', async () => {
     const dir = path.join(clone, '.worktrees', 's1-x'); addWorktree(clone, dir, 'feat', 'HEAD')
     expect(fs.existsSync(path.join(dir, 'f'))).toBe(true); expect(isDirty(dir)).toBe(false)
-    fs.writeFileSync(path.join(dir, 'f'), 'b'); expect(isDirty(dir)).toBe(true); removeWorktree(clone, dir, true); expect(fs.existsSync(dir)).toBe(false)
+    fs.writeFileSync(path.join(dir, 'f'), 'b'); expect(isDirty(dir)).toBe(true); await removeWorktree(clone, dir, true); expect(fs.existsSync(dir)).toBe(false)
   })
-  it('remove 能清掉含被忽略文件(node_modules)的 worktree（非 force 也兜底物理删除）', () => {
+  it('remove 能清掉含被忽略文件(node_modules)的 worktree（非 force 也兜底物理删除）', async () => {
     // 复刻真实场景：前端 worktree 跑过 pnpm install，node_modules 被 gitignore。
     // git worktree remove 不删被忽略文件 → 旧实现报 "Directory not empty" 并留孤儿；新实现兜底物理删除。
     const dir = path.join(clone, '.worktrees', 's2-fe'); addWorktree(clone, dir, 'fe', 'HEAD')
@@ -28,14 +28,14 @@ describe('git', () => {
     fs.writeFileSync(path.join(dir, 'node_modules', 'pkg', 'index.js'), 'x')
     expect(isDirty(dir)).toBe(true)   // .gitignore 是新增可见文件 → 脏，提交它让 node_modules 成唯一残留
     g(dir, 'add', '-A'); g(dir, 'commit', '-qm', 'ignore nm'); expect(isDirty(dir)).toBe(false)
-    removeWorktree(clone, dir, false)   // 非 force：旧实现在此失败
+    await removeWorktree(clone, dir, false)   // 非 force：旧实现在此失败
     expect(fs.existsSync(dir)).toBe(false)
     expect(g(clone, 'worktree', 'list').stdout).not.toContain('s2-fe')   // git 元数据也已 prune
   })
-  it('addWorktree 复用已存在分支（不再因 -b 报 already exists）', () => {
+  it('addWorktree 复用已存在分支（不再因 -b 报 already exists）', async () => {
     // 模拟：worktree 曾被删但分支留着。再 add 同名分支应复用、不报错。
     const dir1 = path.join(clone, '.worktrees', 's1-keep'); addWorktree(clone, dir1, 'keep', 'HEAD')
-    removeWorktree(clone, dir1, true)
+    await removeWorktree(clone, dir1, true)
     expect(branchExists(clone, 'keep')).toBe(true)   // 分支仍在
     const dir2 = path.join(clone, '.worktrees', 's2-keep')
     expect(() => addWorktree(clone, dir2, 'keep', 'HEAD')).not.toThrow()   // 旧实现会 fatal: branch already exists
