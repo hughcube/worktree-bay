@@ -26,10 +26,21 @@ describe('slots', () => {
     expect(m.description).toBe('新介绍'); expect(m.createdAt).toBe(created)
     expect(claim(cfg, 'f')).toBe(n); expect(readSlots(cfg)[String(n)].description).toBe('新介绍')   // 不传则不清空
   })
-  it('readSlots 向后兼容旧的纯字符串值；readLabels 仍返回字符串', () => {
-    fs.writeFileSync(path.join(ws, '.worktree-bay-slots.json'), JSON.stringify({ '2': 'legacy' }))
-    expect(readSlots(cfg)['2']).toEqual({ feature: 'legacy' })
-    expect(readLabels(cfg)['2']).toBe('legacy')
-    expect(slotOfFeature(cfg, 'legacy')).toBe(2)
+  it('readSlots 兼容旧字符串/旧对象/新数组三种格式；readLabels 仍返回字符串', () => {
+    const fp = path.join(ws, '.worktree-bay-slots.json')
+    fs.writeFileSync(fp, JSON.stringify({ '2': 'legacy' }))                                  // 最旧：纯字符串
+    expect(readSlots(cfg)['2']).toEqual({ slot: 2, feature: 'legacy' })
+    expect(readLabels(cfg)['2']).toBe('legacy'); expect(slotOfFeature(cfg, 'legacy')).toBe(2)
+    fs.writeFileSync(fp, JSON.stringify({ '3': { feature: 'obj', description: 'd' } }))       // 旧：对象
+    expect(readSlots(cfg)['3']).toEqual({ slot: 3, feature: 'obj', description: 'd' })
+    fs.writeFileSync(fp, JSON.stringify([{ slot: 4, feature: 'arr', branch: 'b' }]))          // 新：数组
+    expect(readSlots(cfg)['4']).toEqual({ slot: 4, feature: 'arr', branch: 'b' })
+  })
+  it('写盘为按槽号排序的数组', () => {
+    claim(cfg, 'b'); claim(cfg, 'a')   // 依次占槽 1、2
+    const raw = JSON.parse(fs.readFileSync(path.join(ws, '.worktree-bay-slots.json'), 'utf8'))
+    expect(Array.isArray(raw)).toBe(true)
+    expect(raw.map((r: { slot: number }) => r.slot)).toEqual([1, 2])
+    expect(raw[0]).toMatchObject({ slot: 1, feature: 'b' }); expect(raw[0].createdAt).toBeTruthy()
   })
 })

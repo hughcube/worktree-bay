@@ -165,7 +165,7 @@ worktree-bay gc                        # 回收已合并的
 ## 工作原理要点
 
 - **全命令幂等**：`up / down / start / stop / restart` 重复执行都收敛到同一目标态、不报错——`up` 重入＝复用 worktree + 恢复运行体；`start`/`stop` 已在目标态则跳过/仍逐服务给状态；`down` 对未占槽或已拆的服务是友好 no-op。仅「未知服务名」（typo，不在 config）才报错。
-- **占用真相 = 文件系统**：扫各服务 `.worktrees/s<N>-*`；`.worktree-bay-slots.json` 是槽位元数据账本（每槽记 `feature` / `branch` / `description` / `createdAt`；旧的纯字符串值自动兼容为 `{feature}`），属预约标记，真正占用仍以 worktree 是否存在为准。
+- **占用真相 = 文件系统**：扫各服务 `.worktrees/s<N>-*`；`.worktree-bay-slots.json` 是槽位元数据账本（**数组**，每元素 `{ slot, feature, branch?, description?, createdAt? }`；旧的对象 / 纯字符串格式自动兼容），属预约标记，真正占用仍以 worktree 是否存在为准。
 - **dev server 托管**：`start` 进程后台 detach 启动、日志落 `.worktree-bay/logs/`、按端口追踪真实 pid。日志**每次启动滚动**（上一轮存一份 `.prev`，当前文件只含本轮 + 一行启动头，排障不被跨会话历史淹没；用 `worktree-bay logs <feature>` 直接看尾部，免拼路径）。`start` 会**阻塞到约定端口被监听才返回**（给 vite 冷启动留 ~25s），所以命令返回即代表就绪、`ls` 行首 `●` 绿即可开工；超时不算失败（可能仍在编译/重启），会提示去看日志。`stop`/`down` 按端口可靠停。
 - **运行状态判断 = 端口**：`ls`/`start`/`stop` 判「在不在跑」全用 `pidOnPort`（netstat/lsof，与 ls 同源），不用 connect 探测（docker 发布端口两者会不一致）、也不只看 pid 账本（dir 形态会漂移、docker 无账本记录）。`start` 端口已在监听就跳过、不再误报「恢复」。
 - **stop 严格停「本目录+本端口+本进程」**：① 优先用启动账本（dir 已规范化匹配：相对/绝对/大小写都认）；② 账本缺失时**校验后才杀**——Linux/macOS 比对进程 `cwd` 是否为本 worktree，Windows 取不到 cwd 则核对命令行含 `--port <本端口>`（端口按槽唯一，等价确证）；都确证不了就**不动它**并如实报告（绝不凭端口盲杀）。每个服务都有状态行：已停 / 端口空闲 / 无法确认未停。

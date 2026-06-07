@@ -19,18 +19,31 @@ export function scanOccupancy(cfg: BayConfig): Map<number, Occupant[]> {
 }
 function labelPath(cfg: BayConfig) { return path.join(cfg.workspaceRoot, '.worktree-bay-slots.json') }
 
-// 槽位元数据账本（.worktree-bay-slots.json）每个槽的值。历史上是纯字符串（功能名），现升级为富对象，
-// 多记分支名、介绍（起槽时写，重入时作参考）、首次认领时间。readSlots 读取时把旧的字符串值规范化为
-// { feature }，向后兼容；写入一律是富对象。
-export interface SlotMeta { feature: string; branch?: string; description?: string; createdAt?: string }
+// 槽位元数据账本（.worktree-bay-slots.json）的记录。当前格式是【数组】，每个元素含 slot 号 +
+// 功能名 + 分支 + 介绍（起槽时写、重入参考）+ 首次认领时间。历史格式（对象 { "<slot>": "功能名" } 或
+// { "<slot>": { feature, ... } }）readSlots 读取时统一规范化，向后兼容；写盘一律是数组。
+export interface SlotMeta { slot: number; feature: string; branch?: string; description?: string; createdAt?: string }
 export function readSlots(cfg: BayConfig): Record<string, SlotMeta> {
   const p = labelPath(cfg); if (!fs.existsSync(p)) return {}
-  const raw = JSON.parse(fs.readFileSync(p, 'utf8')) as Record<string, string | SlotMeta>
+  const raw = JSON.parse(fs.readFileSync(p, 'utf8')) as unknown
   const out: Record<string, SlotMeta> = {}
-  for (const [k, v] of Object.entries(raw)) out[k] = typeof v === 'string' ? { feature: v } : v
+  if (Array.isArray(raw)) {                                    // 新格式：[{ slot, feature, ... }]
+    for (const r of raw as SlotMeta[]) if (r && typeof r.slot === 'number') out[String(r.slot)] = { ...r }
+  } else {                                                     // 旧格式：{ "<slot>": "feature" | { feature, ... } }
+    for (const [k, v] of Object.entries(raw as Record<string, string | Omit<SlotMeta, 'slot'>>)) {
+      const slot = Number(k); out[k] = typeof v === 'string' ? { slot, feature: v } : { slot, ...v }
+    }
+  }
   return out
 }
-function save(cfg: BayConfig, store: Record<string, SlotMeta>) { fs.writeFileSync(labelPath(cfg), JSON.stringify(store, null, 2) + '\n') }
+// 写盘：内存 Record → 按槽号排序的数组，字段顺序固定（slot/feature/branch/description/createdAt）。
+function save(cfg: BayConfig, store: Record<string, SlotMeta>) {
+  const arr = Object.values(store).sort((a, b) => a.slot - b.slot).map((m) => ({
+    slot: m.slot, feature: m.feature,
+    ...(m.branch ? { branch: m.branch } : {}), ...(m.description ? { description: m.description } : {}), ...(m.createdAt ? { createdAt: m.createdAt } : {}),
+  }))
+  fs.writeFileSync(labelPath(cfg), JSON.stringify(arr, null, 2) + '\n')
+}
 // 兼容旧调用：slot → 功能名（completion/ls 等仍按字符串用）。
 export function readLabels(cfg: BayConfig): Record<string, string> { const o: Record<string, string> = {}; for (const [k, v] of Object.entries(readSlots(cfg))) o[k] = v.feature; return o }
 export function removeLabel(cfg: BayConfig, slot: number) { const s = readSlots(cfg); delete s[String(slot)]; save(cfg, s) }
@@ -51,7 +64,7 @@ export function claim(cfg: BayConfig, f: string, meta: { branch?: string; descri
     if (JSON.stringify(next) !== JSON.stringify(cur)) { store[String(existing)] = next; save(cfg, store) }
     return existing
   }
-  const n = freeSlot(cfg); const m: SlotMeta = { feature: f }
+  const n = freeSlot(cfg); const m: SlotMeta = { slot: n, feature: f }
   if (meta.branch) m.branch = meta.branch
   if (meta.description) m.description = meta.description
   m.createdAt = new Date().toISOString()
