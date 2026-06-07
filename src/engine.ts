@@ -8,7 +8,7 @@ import { runShellLive, run, spliceArgv, isTTY } from './util/exec.js'
 import { warn, log } from './util/log.js'
 import { withProgress } from './util/progress.js'
 import { color as cc } from './util/color.js'
-import { startDetached, recordedFor, pidAlive, setPid, pidOnPort, readLogTail } from './proc.js'
+import { startDetached, recordedFor, pidAlive, setPid, pidOnPort, readLogTail, stopManaged } from './proc.js'
 import { t } from './i18n.js'
 
 export function mergeEnvText(text: string, kv: Record<string, string>): string {
@@ -90,6 +90,21 @@ async function waitForListen(port: number, ms: number): Promise<boolean> {
     if (Date.now() >= end) return false
     await new Promise((r) => setTimeout(r, 200))
   }
+}
+
+// 「运行体」= docker 容器(infra) + node dev server。up 重入 / start / restart 共用，统一边界。
+// 恢复运行体：有 stop 钩子的 infra 服务重跑 setup（docker compose up -d 幂等恢复）+ 起 managed dev server。
+export async function ensureRuntime(ctx: AddCtx): Promise<void> {
+  const { sp, dir, service, vars } = ctx
+  if (sp.stop && sp.setup) { const cmd = renderTemplate(sp.setup, vars); await runShellLive(cmd, { cwd: dir }, t(`恢复 ${service}：${cmd}`, `resume ${service}: ${cmd}`)) }
+  await ensureStarted(ctx)
+}
+// 停止运行体：杀 managed dev server + 跑 stop 钩子（docker compose stop）。不动 worktree。
+export async function stopRuntime(ctx: AddCtx): Promise<void> {
+  const { cfg, sp, dir, service, vars } = ctx
+  const stopped = stopManaged(cfg.workspaceRoot, dir)
+  if (stopped) log(`  ${cc.green('✓')} ` + t(`已停止 dev server（pid ${stopped.pid}）`, `stopped dev server (pid ${stopped.pid})`))
+  if (sp.stop) { const cmd = renderTemplate(sp.stop, vars); await runShellLive(cmd, { cwd: dir }, t(`停 ${service}：${cmd}`, `stop ${service}: ${cmd}`)) }
 }
 
 export function execArgv(ctx: { sp: Service; vars: Record<string, string | number> }, cmd: string[]): string[] {

@@ -9,24 +9,30 @@ const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), 'cli.js')
 const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version
 const PROTOCOL_VERSION = '2024-11-05'
 
-export const INSTRUCTIONS = `worktree-bay 是「功能 = 槽位」的并行开发编排器。当你需要在一个多服务工作区里并行开发多个功能、又不想让它们的端口/依赖/数据互相干扰时，用本服务的工具来完成开发工作。
+export const INSTRUCTIONS = `worktree-bay 是「功能 = 槽位」的并行开发编排器。在一个多服务工作区里并行开发多个功能、又不想让它们的端口/依赖/数据互相干扰时，用本服务的工具完成开发。
 
-核心模型：每个服务有自己的端口段（基址 = 主 dev/槽0）；一个功能占一个「槽位 N」，用到哪些服务就在哪些服务上各开一个 git worktree 挂进这个槽，该服务端口 = 基址 + N，自动错开，前端自动连到同槽的后端。
+核心模型：每个服务有自己的端口段（基址 = 主 dev/槽0）；一个功能占一个「槽位 N」，用到哪些服务就在哪些服务上各开一个 git worktree 挂进这个槽，该服务端口 = 基址 + N，自动错开；前端自动连到同槽的后端。
+
+三层职责（决定每个工具的边界）：
+- worktree + 基础设施：worktree_bay_up/_add 建立（开 worktree、拷依赖、注入 .env、跑 setup 如 docker compose up），worktree_bay_down 销毁（teardown + 删 worktree）。
+- dev server（前端等长进程）：up 时按配置自动「后台」拉起；worktree_bay_start/_stop/_restart 单独控制它，不动 worktree。
+- 在运行体里执行命令：worktree_bay_run（如 test/migrate）。
 
 推荐工作流：
-0. 摸清工作区（首次或拿不准时）：worktree_bay_doctor 列出全部服务及其仓、校验 git/配置/各仓是否就绪——这也是你获知「有哪些服务名可传给 up/add」的途径。
-1. 起新功能：调用 worktree_bay_up，传功能名 + 要改的服务列表（如 ["api","lms"]）。它会自动占槽、为每个服务开 worktree、拷依赖、注入端口并起服务。
-2. 定位代码：用 worktree_bay_path 拿某功能某服务的 worktree 绝对路径，进去改代码；或 worktree_bay_ls（JSON，含各 worktree 路径）总览全局。
-3. 在某功能的某服务里跑测试/命令：worktree_bay_run（name 用配置里定义的，如 "test"）。
-4. 收尾：分支合并后，先 worktree_bay_gc 看可回收项，再 worktree_bay_down 拆掉该功能（只传 feature=拆整功能；带 service=只拆某个服务）。
+0. 摸清工作区（首次/拿不准时）：worktree_bay_doctor —— 列出全部服务及其仓、校验就绪；这也是获知「有哪些服务名可传给 up」的途径。
+1. 起新功能：worktree_bay_up，传功能名 + 要改的服务列表（如 ["api","lms"]）。自动占槽、开 worktree、拷依赖、注入端口、跑 setup，并把配了 start 的服务（如前端 dev server）后台拉起（日志在 .worktree-bay/logs/）。
+2. 定位代码：worktree_bay_path 拿某功能某服务的 worktree 绝对路径进去改；或 worktree_bay_ls（JSON，含各 worktree 路径，▸run 标记 dev server 是否在跑）总览。
+3. 跑命令/测试：worktree_bay_run（name 用配置里定义的，如 "test"）。
+4. 控制 dev server（按需）：worktree_bay_restart 重启 / _stop 停 / _start 起——只影响 dev server，worktree 与代码不受影响。
+5. 收尾：分支合并后先 worktree_bay_gc 看可回收项，再 worktree_bay_down 拆掉该功能（省略 service=整功能；带 service=只拆该服务）。
 
 要点：
-- 同一个功能从头到尾用同一个功能名（它同时是默认分支名）贯穿 up/path/run/down。
-- 只起这个功能「实际要改」的服务，不要全起。不知道有哪些服务名时先调 worktree_bay_doctor。
-- 拿不准当前状态时先调 worktree_bay_ls。
-- worktree_bay_gc 默认只读（dry-run 列出建议），apply=true 才真删，且只删「已合并到主分支且工作区干净」的，安全保守、不会误删未完成的工作。
-- worktree_bay_init 可在新工作区生成配置骨架（已存在则不覆盖）；worktree_bay_claim 只占槽并打印各服务端口、不建 worktree（一般直接用 up 即可）。
-- 要写或修改 worktree-bay.config.json、或拿不准任何命令/参数/配置细节时，先调用 worktree_bay_skill 获取完整的使用与配置指南（含每个配置原语、模板变量、校验规则与完整示例）。`
+- 一个功能从头到尾用同一个功能名（= 默认分支名）。
+- 只起「实际要改」的服务，不要全起；不知道有哪些服务名先调 worktree_bay_doctor。
+- 拿不准当前状态先调 worktree_bay_ls。
+- worktree_bay_gc 默认只读（dry-run 列建议），apply=true 才真删，且只删「已合并到主分支且工作区干净」的，保守不误删。
+- worktree_bay_init 在新工作区生成配置骨架（已存在则不覆盖）；worktree_bay_claim 只占槽并打印端口、不建 worktree（一般直接用 up 即可）。
+- 要写/改 worktree-bay.config.json、或拿不准任何命令/参数/配置细节，先调 worktree_bay_skill 取完整指南（每个配置原语、模板变量、校验规则、完整示例）。`
 
 interface Tool { name: string; description: string; inputSchema: object; toArgs: (a: Record<string, unknown>) => string[] }
 const str = { type: 'string' }
@@ -50,6 +56,15 @@ export const TOOLS: Tool[] = [
   { name: 'worktree_bay_run', description: '在某功能某服务的运行体里跑预设命令（如 test），可透传额外参数',
     inputSchema: { type: 'object', properties: { feature: str, service: str, name: str, args: { type: 'array', items: str } }, required: ['feature', 'service', 'name'] },
     toArgs: (a) => ['run', String(a.feature), String(a.service), String(a.name), ...((a.args as string[]) ?? [])] },
+  { name: 'worktree_bay_start', description: '启动功能的运行体（docker 容器 + node dev server 一起），不动 worktree。service 省略=该功能所有服务。',
+    inputSchema: { type: 'object', properties: { feature: str, service: str }, required: ['feature'] },
+    toArgs: (a) => ['start', String(a.feature), ...(a.service ? [String(a.service)] : [])] },
+  { name: 'worktree_bay_stop', description: '停止功能的运行体（停 docker 容器 + 杀 node dev server），保留 worktree。service 省略=该功能所有服务。',
+    inputSchema: { type: 'object', properties: { feature: str, service: str }, required: ['feature'] },
+    toArgs: (a) => ['stop', String(a.feature), ...(a.service ? [String(a.service)] : [])] },
+  { name: 'worktree_bay_restart', description: '重启功能的运行体（停掉再起，docker + node 一起）。改了配置或端口卡住时用。service 省略=该功能所有服务。',
+    inputSchema: { type: 'object', properties: { feature: str, service: str }, required: ['feature'] },
+    toArgs: (a) => ['restart', String(a.feature), ...(a.service ? [String(a.service)] : [])] },
   { name: 'worktree_bay_down', description: '拆除功能的 worktree：省略 service 拆整个功能的所有服务，传 service 只拆该服务（默认查脏/未推保护，force=true 强删）',
     inputSchema: { type: 'object', properties: { feature: str, service: str, force: { type: 'boolean' } }, required: ['feature'] },
     toArgs: (a) => ['rm', String(a.feature), ...(a.service ? [String(a.service)] : []), ...(a.force ? ['-f'] : [])] },

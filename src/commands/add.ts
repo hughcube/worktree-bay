@@ -4,7 +4,7 @@ import { BayConfig, repoPath } from '../config.js'
 import { withLock } from '../lock.js'
 import { claim } from '../slots.js'
 import { slugify, worktreeDirName } from '../naming.js'
-import { AddCtx, buildVars, bringUp, ensureStarted } from '../engine.js'
+import { AddCtx, buildVars, bringUp, ensureStarted, ensureRuntime } from '../engine.js'
 import { mainBranch } from '../git.js'
 import { log } from '../util/log.js'
 import { color as c } from '../util/color.js'
@@ -22,9 +22,9 @@ export async function addCommand(cfg: BayConfig, feature: string, service: strin
     const p = resolveAdd(cfg, feature, service, br); const sp = cfg.services[service]
     const ctxBase = { cfg, service, sp, slot: p.slot, slug: p.slug, dir: p.dir, repo: p.repo }
     const ctx: AddCtx = { ...ctxBase, vars: buildVars(cfg, ctxBase) }
-    if (fs.existsSync(p.dir)) {   // 幂等重入：worktree 已在 → 不重建/不重跑 setup，但确保 dev server 在跑
+    if (fs.existsSync(p.dir)) {   // 幂等重入：worktree 已在 → 不重建，但「恢复运行体」（docker 容器 + dev server 都拉回来）
       log(c.bold(c.cyan(service)) + c.dim(t(`  ·  已就绪 · 槽 ${p.slot} · 端口 ${ctx.vars.port}`, `  ·  ready · slot ${p.slot} · port ${ctx.vars.port}`)))
-      await ensureStarted(ctx)
+      await ensureRuntime(ctx)
       return
     }
     log(c.bold(c.cyan(service)) + c.dim(t(`  ·  槽 ${p.slot} · 端口 ${ctx.vars.port} · 分支 ${br}`, `  ·  slot ${p.slot} · port ${ctx.vars.port} · branch ${br}`)))

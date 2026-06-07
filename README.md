@@ -45,7 +45,9 @@ worktree-bay down drill-fix
 worktree-bay gc
 ```
 
-> 需要更细的控制：`claim <feature>` 单独占槽、`add <feature> <service> [branch]` 单加一个服务（branch 可自定义，省略则用功能名）、`rm <feature> [service]` 拆单个服务。
+> 运行体随起随停（不动 worktree/代码）：`worktree-bay stop drill-fix` 停掉（docker 容器 + dev server 一起）、`start` 起回来、`restart` 重启。
+>
+> 更细的控制：`claim <feature>` 单独占槽、`add <feature> <service> [branch]` 单加一个服务（branch 可自定义，省略则用功能名）、`rm <feature> [service]` 拆单个服务。
 
 ## 配置
 
@@ -61,8 +63,9 @@ worktree-bay gc
       "vars": { "project": "myapi-{slug}" },
       "copy": [".env", "vendor"],                                  // 从主 checkout 递归拷文件/目录
       "env": { ".env": { "APP_PORT": "{port}" } },                 // 合并键值进 dotenv（保留其它键）
-      "setup": "docker compose -p {project} up -d",                // 挂入时执行
-      "teardown": "docker compose -p {project} down -v",           // 拆除时执行
+      "setup": "docker compose -p {project} up -d",                // up 时执行（建运行体）
+      "stop": "docker compose -p {project} stop",                  // stop/restart 时执行（停而不毁）
+      "teardown": "docker compose -p {project} down -v",           // down 时执行（销毁）
       "exec": ["docker", "exec", "-i", "{project}-app-1", "{cmd...}"], // 透传模板（argv）
       "run": { "test": ["composer", "run", "test"] }               // 命名命令
     },
@@ -71,7 +74,7 @@ worktree-bay gc
       "upstream": { "service": "api", "fallback": "http://localhost:6001" }, // → {upstreamBase}
       "env": { ".env.dev.local": { "VITE_API_BASE_URL": "{upstreamBase}" } },
       "setup": "pnpm install",
-      "start": "pnpm dev --port {port}"                            // 长进程：只打印命令，交你自起
+      "start": "pnpm dev --port {port}"                            // 长进程 dev server：up 时自动后台启动
     }
   }
 }
@@ -87,8 +90,9 @@ worktree-bay gc
 | `copy` | 从主 checkout 递归拷贝的文件/目录（含依赖目录） |
 | `env` | 按文件合并 dotenv 键值，文件不存在则建 |
 | `upstream` | 声明依赖的上游服务，产出 `{upstreamBase}` |
-| `setup` / `teardown` | 挂入 / 拆除时执行的 shell 命令 |
-| `start` | 长进程命令，只打印不阻塞 |
+| `setup` / `teardown` | 建立 / 销毁运行体的 shell（`up` 时 setup、`down` 时 teardown） |
+| `start` | 长进程 dev server（如 `pnpm dev`），`up` 时自动**后台启动**、日志落 `.worktree-bay/logs/`，由 `start`/`stop`/`restart` 控制 |
+| `stop` | 停止 infra 运行体的 shell（如 `docker compose stop`），供 `stop`/`restart` 用（让 docker 停而不毁） |
 | `exec` | 透传命令模板（argv 数组，`{cmd...}` splice） |
 | `run` | 命名命令（argv 数组），供 `worktree-bay run <feature> <service> <name>` |
 
@@ -116,9 +120,9 @@ worktree-bay completion install
 
 ## MCP（让 AI 直接用）
 
-内置一个 MCP 服务，让 AI（Claude Code 等）通过 MCP 调用 worktree-bay 完成并行开发，并内置工作流指导（告诉 AI 何时用 up/ls/run/down/gc）。
+内置一个 MCP 服务，让 AI（Claude Code 等）通过 MCP 调用 worktree-bay 完成并行开发，并内置工作流指导（三层模型 + 何时用 doctor/up/path/run/start-stop-restart/down/gc）。
 
-启动：`worktree-bay mcp`（stdio）。在 Claude Code 里注册：
+启动：`worktree-bay mcp`（stdio）。在 Claude Code 里注册（项目级 `.mcp.json` 或全局，跨平台、无需写死路径）：
 
 ```json
 {
@@ -128,7 +132,7 @@ worktree-bay completion install
 }
 ```
 
-> 服务在哪个工作区目录启动，就用哪个目录的 `worktree-bay.config.json`（或设 `WORKTREE_BAY_CONFIG`）。暴露的工具：`worktree_bay_doctor / ls / up / claim / add / path / run / down / gc / init / skill`（`doctor` 列出全部服务名，`ls` 以 JSON 返回各 worktree 路径，`path` 直接给某功能某服务的目录，`down` 可只拆单个服务，`skill` 取完整指南）。
+> 服务在哪个工作区目录启动，就用哪个目录的 `worktree-bay.config.json`（cwd 自动向上查找，**无需写死路径**；也可设 `WORKTREE_BAY_CONFIG`）。暴露的工具：`worktree_bay_doctor / ls / up / claim / add / path / run / start / stop / restart / down / gc / init / skill`（`doctor` 列出全部服务名，`ls` JSON 返回各 worktree 路径与 `▸run`，`path` 给某功能某服务目录，`start/stop/restart` 控制运行体，`down` 可只拆单个服务，`skill` 取完整指南）。MCP 调用时自动以非交互模式运行（输出不含颜色/进度控制符）。
 
 ## 许可证
 

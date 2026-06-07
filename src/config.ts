@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { t } from './i18n.js'
 
-export interface Service { port: number; repo?: string; vars?: Record<string, string>; copy?: string[]; env?: Record<string, Record<string, string>>; upstream?: { service: string; fallback: string }; setup?: string; teardown?: string; start?: string; exec?: string[]; run?: Record<string, string[]> }
+export interface Service { port: number; repo?: string; vars?: Record<string, string>; copy?: string[]; env?: Record<string, Record<string, string>>; upstream?: { service: string; fallback: string }; setup?: string; teardown?: string; start?: string; stop?: string; exec?: string[]; run?: Record<string, string[]> }
 export interface BayConfig { workspaceRoot: string; maxSlots: number; services: Record<string, Service>; configDir: string }
 
 function refs(tpl: string): string[] { return [...tpl.matchAll(/\{(\w+)\}/g)].map((m) => m[1]) }
