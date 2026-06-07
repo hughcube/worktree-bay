@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { BayConfig, Service, renderTemplate } from './config.js'
-import { portOf, isPortFree } from './ports.js'
+import { portOf, portInUse } from './ports.js'
 import { scanOccupancy } from './slots.js'
 import { addWorktree } from './git.js'
 import { runShellLive, run, spliceArgv, isTTY } from './util/exec.js'
@@ -33,7 +33,7 @@ export function buildVars(cfg: BayConfig, ctx: Omit<AddCtx, 'vars'>): Record<str
 
 export async function bringUp(ctx: AddCtx, base: string, branch: string): Promise<void> {
   const { sp, dir, repo, vars } = ctx
-  if (!(await isPortFree(Number(vars.port)))) throw new Error(t(`端口 ${vars.port} 已被占用。先停掉占用它的进程，或用 \`worktree-bay gc\`/\`worktree-bay down <功能>\` 释放其它槽后重试。`, `port ${vars.port} is already in use. Stop whatever is using it, or free a slot with \`worktree-bay gc\`/\`worktree-bay down <feature>\`, then retry.`))
+  if (await portInUse(Number(vars.port))) throw new Error(t(`端口 ${vars.port} 已被占用。先停掉占用它的进程，或用 \`worktree-bay gc\`/\`worktree-bay down <功能>\` 释放其它槽后重试。`, `port ${vars.port} is already in use. Stop whatever is using it, or free a slot with \`worktree-bay gc\`/\`worktree-bay down <feature>\`, then retry.`))
   log(t(`  → 创建 worktree（分支 ${branch}）…`, `  → creating worktree (branch ${branch})…`))
   addWorktree(repo, dir, branch, base)
   for (const rel of sp.copy ?? []) {
@@ -66,7 +66,7 @@ export async function ensureStarted(ctx: AddCtx): Promise<void> {
   const ws = cfg.workspaceRoot, port = Number(vars.port)
   const rec = recordedFor(ws, dir)
   if (rec && pidAlive(rec.pid)) { log(t(`  • ${service} dev server 已在跑（pid ${rec.pid}，端口 ${port}）`, `  • ${service} dev server already running (pid ${rec.pid}, port ${port})`)); return }
-  if (!(await isPortFree(port))) { log(t(`  • 端口 ${port} 已在监听，视为 ${service} dev server 在跑，跳过启动`, `  • port ${port} already listening; treating ${service} dev server as up, skip`)); return }
+  if (await portInUse(port)) { log(t(`  • 端口 ${port} 已在监听，视为 ${service} dev server 在跑，跳过启动`, `  • port ${port} already listening; treating ${service} dev server as up, skip`)); return }
   const cmd = renderTemplate(sp.start, vars)
   const r = startDetached(ws, dir, service, slug, port, cmd)
   // 等它在【约定端口】上监听（最多 ~25s，给 vite 冷启动 + 偶发 restart 留足时间）。
@@ -86,7 +86,7 @@ export async function ensureStarted(ctx: AddCtx): Promise<void> {
 async function waitForListen(port: number, ms: number): Promise<boolean> {
   const end = Date.now() + ms
   for (;;) {
-    if (!(await isPortFree(port))) return true
+    if (await portInUse(port)) return true
     if (Date.now() >= end) return false
     await new Promise((r) => setTimeout(r, 200))
   }
