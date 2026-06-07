@@ -17,14 +17,13 @@ export function renderSlots(cfg: BayConfig): string {
   for (const n of [...slots].sort((a, b) => a - b)) {
     const meta = metas[String(n)]
     const svc = (occ.get(n) ?? []).map((o) => { const p = portOf(cfg.services[o.service].port, n); const dot = running(p) ? c.green('●') : c.dim('●'); return `${dot}${o.service}@${p}` })
-    lines.push(`${c.bold(c.cyan(String(n)))}${c.dim(':')} ${c.bold(meta?.feature ?? t('(未命名)', '(unnamed)'))}  [${svc.join(', ') || c.dim(t('无 worktree', 'no worktree'))}]`)
-    if (meta) {   // 副行：介绍 + 分支(异于功能名时) + 创建日期，给重入/总览更多上下文
-      const bits: string[] = []
-      if (meta.description) bits.push(meta.description)
-      if (meta.branch && meta.branch !== meta.feature) bits.push(t(`分支 ${meta.branch}`, `branch ${meta.branch}`))
-      if (meta.createdAt) bits.push(meta.createdAt.slice(0, 10))
-      if (bits.length) lines.push('   ' + c.dim(bits.join(' · ')))
-    }
+    // 介绍 + 分支(异于功能名时) + 创建日期，接在同一行末尾（不换行）
+    const bits: string[] = []
+    if (meta?.description) bits.push(meta.description)
+    if (meta?.branch && meta.branch !== meta.feature) bits.push(t(`分支 ${meta.branch}`, `branch ${meta.branch}`))
+    if (meta?.createdAt) bits.push(meta.createdAt.slice(0, 10))
+    const tail = bits.length ? '  ' + c.dim(bits.join(' · ')) : ''
+    lines.push(`${c.bold(c.cyan(String(n)))}${c.dim(':')} ${c.bold(meta?.feature ?? t('(未命名)', '(unnamed)'))}  [${svc.join(', ') || c.dim(t('无 worktree', 'no worktree'))}]${tail}`)
   }
   return lines.join('\n') || t('(无槽位在用)', '(no slots in use)')
 }
