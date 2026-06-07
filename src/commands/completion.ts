@@ -4,6 +4,7 @@ import path from 'node:path'
 import { BayConfig } from '../config.js'
 import { readLabels } from '../slots.js'
 import { log } from '../util/log.js'
+import { t } from '../i18n.js'
 
 const SUBCMDS = ['init', 'doctor', 'claim', 'up', 'add', 'ls', 'path', 'gc', 'down', 'rm', 'run', 'sh', 'completion', 'mcp', 'skill', 'version', 'help']
 // words = 命令名 + 光标前已输入完的词（不含当前正在补的词）
@@ -36,14 +37,14 @@ export function installCompletion(shell?: string): void {
     fs.mkdirSync(dir, { recursive: true })
     const file = path.join(dir, 'worktree-bay.fish')
     fs.writeFileSync(file, completionScript('fish') + '\n')
-    log(`✓ fish 补全已写入 ${file}（新开 fish 即生效）`)
+    log(t(`✓ fish 补全已写入 ${file}（新开 fish 即生效）`, `✓ fish completion written to ${file} (effective in a new fish session)`))
     return
   }
   const isZsh = sh === 'zsh'
   const rc = path.join(os.homedir(), isZsh ? '.zshrc' : '.bashrc')
   const line = `eval "$(worktree-bay completion ${isZsh ? 'zsh' : 'bash'})"`
   const cur = fs.existsSync(rc) ? fs.readFileSync(rc, 'utf8') : ''
-  if (cur.includes(line)) { log(`✓ 补全已在 ${rc}，无需重复安装`); return }
+  if (cur.includes(line)) { log(t(`✓ 补全已在 ${rc}，无需重复安装`, `✓ completion already in ${rc}, nothing to do`)); return }
   fs.appendFileSync(rc, `\n# worktree-bay completion\n${line}\n`)
-  log(`✓ 补全已加入 ${rc}，执行 'source ${rc}' 或重开终端即生效`)
+  log(t(`✓ 补全已加入 ${rc}，执行 'source ${rc}' 或重开终端即生效`, `✓ completion added to ${rc}; run 'source ${rc}' or reopen your terminal to enable it`))
 }

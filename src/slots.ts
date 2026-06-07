@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { BayConfig, repoPath } from './config.js'
 import { parseWorktreeDir } from './naming.js'
+import { t } from './i18n.js'
 
 export interface Occupant { service: string; slot: number; slug: string; dir: string }
 export function scanOccupancy(cfg: BayConfig): Map<number, Occupant[]> {
@@ -25,7 +26,7 @@ export function slotOfFeature(cfg: BayConfig, f: string): number | undefined { f
 export function freeSlot(cfg: BayConfig): number {
   const occ = scanOccupancy(cfg); const l = readLabels(cfg)
   for (let n = 1; n <= cfg.maxSlots; n++) if (!occ.has(n) && l[String(n)] === undefined) return n
-  throw new Error(`no free slot (1..${cfg.maxSlots} all taken)`)
+  throw new Error(t(`没有空闲槽位（1..${cfg.maxSlots} 全部占用）。用 \`worktree-bay gc\` 回收已合并的，或 \`worktree-bay down <功能>\` 拆掉用完的，或调大配置里的 maxSlots。`, `no free slot (1..${cfg.maxSlots} all taken). Reclaim merged ones with \`worktree-bay gc\`, tear down finished ones with \`worktree-bay down <feature>\`, or raise maxSlots in your config.`))
 }
 export function claim(cfg: BayConfig, f: string): number { const e = slotOfFeature(cfg, f); if (e !== undefined) return e; const n = freeSlot(cfg); writeLabel(cfg, n, f); return n }
 export function pruneEmptyLabels(cfg: BayConfig): { slot: number; feature: string }[] {

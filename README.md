@@ -24,6 +24,8 @@ npm i -g worktree-bay
 
 需要 Node ≥ 20。
 
+> 输出语言按系统区域自动切换中/英（识别不出时默认中文）。可用环境变量 `WORKTREE_BAY_LANG=zh|en` 强制指定。
+
 ## 快速上手
 
 ```bash
@@ -126,7 +128,7 @@ worktree-bay completion install
 }
 ```
 
-> 服务在哪个工作区目录启动，就用哪个目录的 `worktree-bay.config.json`（或设 `WORKTREE_BAY_CONFIG`）。暴露的工具：`worktree_bay_up / ls / add / path / run / down / gc / skill`（`ls` 以 JSON 返回各 worktree 路径，`path` 直接给某功能某服务的目录，`skill` 取完整指南）。
+> 服务在哪个工作区目录启动，就用哪个目录的 `worktree-bay.config.json`（或设 `WORKTREE_BAY_CONFIG`）。暴露的工具：`worktree_bay_doctor / ls / up / claim / add / path / run / down / gc / init / skill`（`doctor` 列出全部服务名，`ls` 以 JSON 返回各 worktree 路径，`path` 直接给某功能某服务的目录，`down` 可只拆单个服务，`skill` 取完整指南）。
 
 ## 许可证
 

@@ -18,6 +18,8 @@ npm i -g worktree-bay        # 需要 Node >= 20
 worktree-bay completion install   # 一键装 shell 补全（可选）
 ```
 
+> **输出语言**：按系统区域（locale / `LANG` / `LC_*`）自动中英切换，识别不出时默认中文。可用 `WORKTREE_BAY_LANG=zh|en` 强制。错误提示均为自然语言并附「应该怎么做」的建议。
+
 ---
 
 ## 命令大全
@@ -152,7 +154,7 @@ worktree-bay gc                        # 回收已合并的
 
 ## 给 AI（MCP）
 
-`worktree-bay mcp` 暴露工具：`worktree_bay_up / ls / add / path / run / down / gc / skill`。`ls` 以 JSON 返回（含各 worktree 绝对路径），`path` 直接给某功能某服务的 worktree 目录——拿到路径后即可进去改代码。要写或修改 `worktree-bay.config.json`、或拿不准命令/配置细节时，调用 `worktree_bay_skill` 取本指南全文。
+`worktree-bay mcp` 暴露工具：`worktree_bay_doctor / ls / up / claim / add / path / run / down / gc / init / skill`。`doctor` 列出全部服务（AI 借此得知有哪些服务名可用）；`ls` 以 JSON 返回（含各 worktree 绝对路径）；`path` 直接给某功能某服务的 worktree 目录；`down` 省略 service 拆整功能、带 service 只拆该服务。要写或修改 `worktree-bay.config.json`、或拿不准命令/配置细节时，调用 `worktree_bay_skill` 取本指南全文。
 
 ## 常见坑
 

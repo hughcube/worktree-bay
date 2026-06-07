@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { addWorktree, removeWorktree, isDirty, mainBranch, isMergedToMain, hasUnpushed } from '../src/git.js'
+import { addWorktree, removeWorktree, isDirty, mainBranch, isMergedToMain, hasUnpushed, branchExists } from '../src/git.js'
 
 const g = (cwd: string, ...a: string[]) => spawnSync('git', ['-C', cwd, ...a], { encoding: 'utf8' })
 let origin: string, clone: string
@@ -31,6 +31,15 @@ describe('git', () => {
     removeWorktree(clone, dir, false)   // 非 force：旧实现在此失败
     expect(fs.existsSync(dir)).toBe(false)
     expect(g(clone, 'worktree', 'list').stdout).not.toContain('s2-fe')   // git 元数据也已 prune
+  })
+  it('addWorktree 复用已存在分支（不再因 -b 报 already exists）', () => {
+    // 模拟：worktree 曾被删但分支留着。再 add 同名分支应复用、不报错。
+    const dir1 = path.join(clone, '.worktrees', 's1-keep'); addWorktree(clone, dir1, 'keep', 'HEAD')
+    removeWorktree(clone, dir1, true)
+    expect(branchExists(clone, 'keep')).toBe(true)   // 分支仍在
+    const dir2 = path.join(clone, '.worktrees', 's2-keep')
+    expect(() => addWorktree(clone, dir2, 'keep', 'HEAD')).not.toThrow()   // 旧实现会 fatal: branch already exists
+    expect(fs.existsSync(path.join(dir2, 'f'))).toBe(true)
   })
   it('mainBranch/merged/unpushed', () => {
     expect(mainBranch(clone)).toBe('master')

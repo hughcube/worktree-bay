@@ -3,7 +3,14 @@ import fs from 'node:fs'
 function git(repo: string, ...a: string[]) { return spawnSync('git', ['-C', repo, ...a], { encoding: 'utf8' }) }
 function ok(repo: string, ...a: string[]): string { const r = git(repo, ...a); if (r.status !== 0) throw new Error(`git ${a.join(' ')}: ${r.stderr || r.stdout}`); return r.stdout }
 
-export function addWorktree(repo: string, dir: string, branch: string, base: string) { ok(repo, 'worktree', 'add', '-b', branch, dir, base) }
+export function branchExists(repo: string, branch: string): boolean {
+  return git(repo, 'rev-parse', '--verify', '--quiet', `refs/heads/${branch}`).status === 0
+}
+export function addWorktree(repo: string, dir: string, branch: string, base: string) {
+  // 分支已存在（如上次 worktree 删了但分支留着）→ 直接挂出复用，不用 -b 重建（否则 git 会报 "branch already exists"）
+  if (branchExists(repo, branch)) ok(repo, 'worktree', 'add', dir, branch)
+  else ok(repo, 'worktree', 'add', '-b', branch, dir, base)
+}
 export function removeWorktree(repo: string, dir: string, force: boolean) {
   const a = ['worktree', 'remove', dir]; if (force) a.push('--force')
   git(repo, ...a)   // 尽力移除；残留交给下面兜底（调用方已先过脏/未推保护，到这里删除是安全的）

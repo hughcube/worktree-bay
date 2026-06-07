@@ -2,6 +2,7 @@ import { BayConfig } from '../config.js'
 import { scanOccupancy, readLabels } from '../slots.js'
 import { portOf } from '../ports.js'
 import { log } from '../util/log.js'
+import { t } from '../i18n.js'
 
 export function renderSlots(cfg: BayConfig): string {
   const occ = scanOccupancy(cfg); const labels = readLabels(cfg)
@@ -9,9 +10,9 @@ export function renderSlots(cfg: BayConfig): string {
   const lines: string[] = []
   for (const n of [...slots].sort((a, b) => a - b)) {
     const svc = (occ.get(n) ?? []).map((o) => `${o.service}@${portOf(cfg.services[o.service].port, n)}`)
-    lines.push(`slot ${n}  ${labels[String(n)] ?? '(unnamed)'}  [${svc.join(', ') || 'no worktree'}]`)
+    lines.push(`slot ${n}  ${labels[String(n)] ?? t('(未命名)', '(unnamed)')}  [${svc.join(', ') || t('无 worktree', 'no worktree')}]`)
   }
-  return lines.join('\n') || '(no slots in use)'
+  return lines.join('\n') || t('(无槽位在用)', '(no slots in use)')
 }
 export function slotsData(cfg: BayConfig): object[] {
   const occ = scanOccupancy(cfg); const labels = readLabels(cfg)
