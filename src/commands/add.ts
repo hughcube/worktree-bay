@@ -11,15 +11,15 @@ import { color as c } from '../util/color.js'
 import { t } from '../i18n.js'
 
 export interface AddPlan { service: string; slot: number; slug: string; dir: string; repo: string }
-export function resolveAdd(cfg: BayConfig, feature: string, service: string, branch: string): AddPlan {
+export function resolveAdd(cfg: BayConfig, feature: string, service: string, branch: string, description?: string): AddPlan {
   if (!cfg.services[service]) throw new Error(t(`未知服务「${service}」。运行 \`worktree-bay doctor\` 查看配置里有哪些服务。`, `unknown service "${service}". Run \`worktree-bay doctor\` to see configured services.`))
-  const slot = claim(cfg, feature); const slug = worktreeDirName(slot, slugify(branch))
+  const slot = claim(cfg, feature, { branch, description }); const slug = worktreeDirName(slot, slugify(branch))
   return { service, slot, slug, dir: path.join(repoPath(cfg, service), '.worktrees', slug), repo: repoPath(cfg, service) }
 }
-export async function addCommand(cfg: BayConfig, feature: string, service: string, branch?: string, base?: string) {
+export async function addCommand(cfg: BayConfig, feature: string, service: string, branch?: string, base?: string, description?: string) {
   const br = branch || feature   // 默认分支 = 功能名
   await withLock(cfg.workspaceRoot, async () => {
-    const p = resolveAdd(cfg, feature, service, br); const sp = cfg.services[service]
+    const p = resolveAdd(cfg, feature, service, br, description); const sp = cfg.services[service]
     const ctxBase = { cfg, service, sp, slot: p.slot, slug: p.slug, dir: p.dir, repo: p.repo }
     const ctx: AddCtx = { ...ctxBase, vars: buildVars(cfg, ctxBase) }
     if (fs.existsSync(p.dir)) {   // 幂等重入：worktree 已在 → 不重建，但「恢复运行体」（docker 容器 + dev server 都拉回来）
@@ -44,6 +44,6 @@ export async function addCommand(cfg: BayConfig, feature: string, service: strin
 }
 
 // up: 一条命令为功能批量起多个服务（claim 自动 + 各服务默认分支）。每个服务由 addCommand 自己打印简洁标题。
-export async function upCommand(cfg: BayConfig, feature: string, services: string[], base?: string) {
-  for (const service of services) await addCommand(cfg, feature, service, undefined, base)
+export async function upCommand(cfg: BayConfig, feature: string, services: string[], base?: string, description?: string) {
+  for (const service of services) await addCommand(cfg, feature, service, undefined, base, description)
 }

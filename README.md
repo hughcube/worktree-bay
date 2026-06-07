@@ -30,7 +30,8 @@ npm i -g worktree-bay
 
 ```bash
 # 一条命令起整个功能：自动占槽 + 在 api/lms 上开 worktree（分支默认 = 功能名）
-worktree-bay up drill-fix api lms
+# -d 记录这个槽的用途，写进槽账本，ls 会显示、重入时参考（up/add/claim 都支持）
+worktree-bay up drill-fix api lms -d "修演练页 bug"
 
 # 看占用
 worktree-bay ls
