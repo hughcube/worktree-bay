@@ -15,9 +15,9 @@ export function complete(cfg: BayConfig | null, words: string[]): string[] {
   const sub = prev[0]; const pos = prev.length
   const featureSubs = ['up', 'add', 'rm', 'down', 'run', 'sh', 'path', 'start', 'stop', 'restart']
   if (featureSubs.includes(sub) && pos === 1) return Object.values(readLabels(cfg))
-  if (['add', 'run', 'sh', 'path', 'start', 'stop', 'restart'].includes(sub) && pos === 2) return Object.keys(cfg.services)
+  if (['add', 'run', 'sh', 'path'].includes(sub) && pos === 2) return Object.keys(cfg.services)   // 单服务
   if (sub === 'run' && pos === 3) return Object.keys(cfg.services[prev[2]]?.run ?? {})   // run <feature> <service> <name>：补该服务的 run 命令名
-  if (sub === 'up' && pos >= 2) return Object.keys(cfg.services)   // up 接变长服务列表
+  if (['up', 'start', 'stop', 'restart', 'rm'].includes(sub) && pos >= 2) return Object.keys(cfg.services)   // 变长服务列表
   return []
 }
 export function completionScript(shell: string): string {

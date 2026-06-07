@@ -22,16 +22,16 @@ describe('mcp (lightweight stdio JSON-RPC)', () => {
   it('toArgs 拼出正确的 CLI 参数', () => {
     expect(TOOLS.find((t) => t.name === 'worktree_bay_up')!.toArgs({ feature: 'f', services: ['api', 'lms'] })).toEqual(['up', 'f', 'api', 'lms'])
     expect(TOOLS.find((t) => t.name === 'worktree_bay_gc')!.toArgs({ apply: true })).toEqual(['gc', '--apply'])
-    expect(TOOLS.find((t) => t.name === 'worktree_bay_down')!.toArgs({ feature: 'f', force: true })).toEqual(['rm', 'f', '-f'])
-    expect(TOOLS.find((t) => t.name === 'worktree_bay_down')!.toArgs({ feature: 'f' })).toEqual(['rm', 'f'])
-    expect(TOOLS.find((t) => t.name === 'worktree_bay_down')!.toArgs({ feature: 'f', service: 'api' })).toEqual(['rm', 'f', 'api'])
+    expect(TOOLS.find((t) => t.name === 'worktree_bay_down')!.toArgs({ feature: 'f', force: true })).toEqual(['down', 'f', '-f'])   // 省略 services → 整功能 down
+    expect(TOOLS.find((t) => t.name === 'worktree_bay_down')!.toArgs({ feature: 'f' })).toEqual(['down', 'f'])
+    expect(TOOLS.find((t) => t.name === 'worktree_bay_down')!.toArgs({ feature: 'f', services: ['api', 'lms'] })).toEqual(['rm', 'f', 'api', 'lms'])   // 给 services → rm 指定服务
     expect(TOOLS.find((t) => t.name === 'worktree_bay_ls')!.toArgs({})).toEqual(['ls', '--json'])
     expect(TOOLS.find((t) => t.name === 'worktree_bay_path')!.toArgs({ feature: 'f', service: 'api' })).toEqual(['path', 'f', 'api'])
     expect(TOOLS.find((t) => t.name === 'worktree_bay_doctor')!.toArgs({})).toEqual(['doctor'])
     expect(TOOLS.find((t) => t.name === 'worktree_bay_claim')!.toArgs({ feature: 'f' })).toEqual(['claim', 'f'])
     expect(TOOLS.find((t) => t.name === 'worktree_bay_init')!.toArgs({})).toEqual(['init'])
     expect(TOOLS.find((t) => t.name === 'worktree_bay_stop')!.toArgs({ feature: 'f' })).toEqual(['stop', 'f'])
-    expect(TOOLS.find((t) => t.name === 'worktree_bay_start')!.toArgs({ feature: 'f', service: 'api' })).toEqual(['start', 'f', 'api'])
+    expect(TOOLS.find((t) => t.name === 'worktree_bay_start')!.toArgs({ feature: 'f', services: ['api', 'lms'] })).toEqual(['start', 'f', 'api', 'lms'])
     expect(TOOLS.find((t) => t.name === 'worktree_bay_restart')!.toArgs({ feature: 'f' })).toEqual(['restart', 'f'])
   })
   it('notifications 不回响应；未知方法回 method not found', () => {

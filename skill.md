@@ -35,11 +35,11 @@ worktree-bay completion install   # 一键装 shell 补全（可选）
 | `worktree-bay path <feature> <service>` | 打印某服务 worktree 的绝对路径（可 `cd $(worktree-bay path f api)`） |
 | `worktree-bay run <feature> <service> <name> [args...]` | 在某服务运行体里跑配置的 `run.<name>`（如 test），透传 args |
 | `worktree-bay sh <feature> <service>` | 进入某服务运行体的 shell |
-| `worktree-bay start <feature> [service]` | 启动功能的运行体（docker 容器 + node dev server 一起），不动 worktree |
-| `worktree-bay stop <feature> [service]` | 停止功能的运行体（停 docker + 杀 node dev server），保留 worktree |
-| `worktree-bay restart <feature> [service]` | 重启运行体（停掉再起；改了配置/端口卡住时用） |
-| `worktree-bay down <feature> [-f]` | 拆除整个功能的所有服务 worktree（= `rm <feature>`） |
-| `worktree-bay rm <feature> [service] [-f]` | 拆除某服务或整槽。默认查脏/未推保护，`-f` 强删 |
+| `worktree-bay start <feature> [services...]` | 启动功能的运行体（docker 容器 + node dev server 一起）；**省略 = 全部**，也可列多个。不动 worktree |
+| `worktree-bay stop <feature> [services...]` | 停止功能的运行体（停 docker + 杀 node dev server）；省略 = 全部，可列多个。保留 worktree |
+| `worktree-bay restart <feature> [services...]` | 重启运行体（停掉再起）；省略 = 全部，可列多个 |
+| `worktree-bay down <feature> [-f]` | 拆除**整个功能**（所有服务的 worktree）。`up` 的反操作 |
+| `worktree-bay rm <feature> <services...> [-f]` | 拆除指定的**一个或多个服务**（拆整功能用 `down`）。`add` 的反操作。默认查脏/未推保护，`-f` 强删 |
 | `worktree-bay gc [--apply]` | 合并感知回收：默认 dry-run 只列建议，`--apply` 才删「已合并且干净」的 |
 | `worktree-bay completion <install\|bash\|zsh\|fish>` | `install` 一键装进 shell；或打印补全脚本 |
 | `worktree-bay mcp` | 启动 MCP 服务（stdio，轻量脚本，客户端按需 spawn），供 AI 调用 |
