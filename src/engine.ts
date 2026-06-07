@@ -69,15 +69,17 @@ export async function ensureStarted(ctx: AddCtx): Promise<void> {
   if (!(await isPortFree(port))) { log(t(`  • 端口 ${port} 已在监听，视为 ${service} dev server 在跑，跳过启动`, `  • port ${port} already listening; treating ${service} dev server as up, skip`)); return }
   const cmd = renderTemplate(sp.start, vars)
   const r = startDetached(ws, dir, service, slug, port, cmd)
-  // 等它在【约定端口】上监听（最多 ~12s）。起来后按端口查出真实 pid 回填（shell/pnpm 会让记录 pid 漂移）。
-  const up = await waitForListen(port, 12000)
+  // 等它在【约定端口】上监听（最多 ~25s，给 vite 冷启动 + 偶发 restart 留足时间）。
+  // 起来后按端口查出真实 pid 回填（shell/pnpm 会让记录 pid 漂移）。
+  const up = await waitForListen(port, 25000)
   if (up) {
     const real = pidOnPort(port); if (real && real > 0) setPid(ws, dir, real)
     log(t(`  ▸ 已后台启动 ${service} dev server（pid ${real || r.pid}，端口 ${port}）  日志: ${r.log}`, `  ▸ started ${service} dev server in background (pid ${real || r.pid}, port ${port})  log: ${r.log}`))
   } else {
+    // 超时不等于失败：dev server 可能仍在启动/重启。给中性提示 + 日志末尾，让用户稍后 ls 复查或排查。
     const tail = readLogTail(r.log)
-    warn(t(`  ✗ ${service} dev server 未在约定端口 ${port} 上监听（12s 内）。多半是 start 命令不对，或端口被占后退避了——建议给 vite 加 --strictPort。\n     命令: ${cmd}\n     手动排查: cd ${dir} && ${cmd}\n     日志(${r.log}):\n${tail || '（空）'}`,
-           `  ✗ ${service} dev server is not listening on the expected port ${port} (within 12s). The start command may be wrong, or it fell back to another port — add --strictPort for vite.\n     command: ${cmd}\n     reproduce: cd ${dir} && ${cmd}\n     log (${r.log}):\n${tail || '(empty)'}`))
+    warn(t(`  • ${service} dev server 已在后台启动，但 25s 内端口 ${port} 还没就绪——可能仍在启动/重启。\n     稍后用 \`worktree-bay ls\` 看是否 ▸run；若起不来，多半是 start 命令不对或端口被占退避（vite 建议加 --strictPort）。\n     命令: ${cmd}    日志: ${r.log}\n     ${tail ? '日志末尾:\n' + tail : ''}`,
+           `  • ${service} dev server launched, but port ${port} isn't ready within 25s — it may still be starting/restarting.\n     Check \`worktree-bay ls\` shortly for ▸run; if it never comes up, the start command is likely wrong or it fell back to another port (add --strictPort for vite).\n     command: ${cmd}    log: ${r.log}\n     ${tail ? 'log tail:\n' + tail : ''}`))
   }
 }
 // 轮询直到约定端口被监听（true），或超时（false）
