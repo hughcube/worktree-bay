@@ -1,5 +1,6 @@
 import { spawnSync, spawn } from 'node:child_process'
 import { t } from '../i18n.js'
+import { color as c } from './color.js'
 export interface RunResult { code: number }
 export function run(cmd: string, args: string[], opts: { cwd?: string } = {}): RunResult { const r = spawnSync(cmd, args, { cwd: opts.cwd, stdio: 'inherit', shell: false }); return { code: r.status ?? 1 } }
 export function runShell(line: string, opts: { cwd?: string } = {}): RunResult { const r = spawnSync(line, { cwd: opts.cwd, stdio: 'inherit', shell: true }); return { code: r.status ?? 1 } }
@@ -20,9 +21,9 @@ export function runShellLive(line: string, opts: { cwd?: string }, label: string
     const buf: string[] = []; let last = ''; let fi = 0
     const render = () => {
       const secs = Math.floor((Date.now() - t0) / 1000)
-      const head = `  ${SPIN[fi++ % SPIN.length]} ${label} ${secs}s `
-      const room = Math.max(0, (process.stderr.columns || 80) - head.length - 1)
-      process.stderr.write('\r\x1b[2K' + head + last.slice(0, room))
+      const head = `  ${c.cyan(SPIN[fi++ % SPIN.length])} ${label} ${c.dim(secs + 's')} `
+      const room = Math.max(0, (process.stderr.columns || 80) - (`  x ${label} ${secs}s `).length - 1)
+      process.stderr.write('\r\x1b[2K' + head + c.dim(last.slice(0, room)))
     }
     const timer = setInterval(render, 120)
     const onData = (d: Buffer) => {
@@ -36,8 +37,8 @@ export function runShellLive(line: string, opts: { cwd?: string }, label: string
       clearInterval(timer)
       const secs = ((Date.now() - t0) / 1000).toFixed(1)
       process.stderr.write('\r\x1b[2K')
-      if (code === 0) process.stderr.write(t(`  ✓ ${label}（${secs}s）\n`, `  ✓ ${label} (${secs}s)\n`))
-      else process.stderr.write(t(`  ✗ ${label} 失败（退出码 ${code}，${secs}s）↓\n`, `  ✗ ${label} failed (exit ${code}, ${secs}s) ↓\n`) + buf.join(''))
+      if (code === 0) process.stderr.write(`  ${c.green('✓')} ${label}${c.dim(`（${secs}s）`)}\n`)
+      else process.stderr.write(c.red(t(`  ✗ ${label} 失败（退出码 ${code}，${secs}s）↓`, `  ✗ ${label} failed (exit ${code}, ${secs}s) ↓`)) + '\n' + buf.join(''))
       resolve({ code: code ?? 1 })
     })
   })

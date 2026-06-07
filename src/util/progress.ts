@@ -1,4 +1,5 @@
 import { log } from './log.js'
+import { color as c } from './color.js'
 
 const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
 
@@ -10,16 +11,16 @@ export async function withProgress<T>(label: string, fn: () => Promise<T>): Prom
   if (!process.stderr.isTTY) {
     log(`  → ${label} …`)
     const r = await fn()
-    log(`  ✓ ${label}（${secs()}s）`)
+    log(`  ${c.green('✓')} ${label}${c.dim(`（${secs()}s）`)}`)
     return r
   }
   let i = 0
-  const timer = setInterval(() => { process.stderr.write(`\r  ${FRAMES[i++ % FRAMES.length]} ${label} ${secs()}s `) }, 120)
+  const timer = setInterval(() => { process.stderr.write(`\r  ${c.cyan(FRAMES[i++ % FRAMES.length])} ${label} ${c.dim(secs() + 's')} `) }, 120)
   if (typeof timer.unref === 'function') timer.unref()
   try {
     return await fn()
   } finally {
     clearInterval(timer)
-    process.stderr.write(`\r  ✓ ${label}（${secs()}s）          \n`)
+    process.stderr.write(`\r  ${c.green('✓')} ${label}${c.dim(`（${secs()}s）`)}          \n`)
   }
 }

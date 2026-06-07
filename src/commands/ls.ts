@@ -3,6 +3,7 @@ import { scanOccupancy, readLabels } from '../slots.js'
 import { portOf } from '../ports.js'
 import { log } from '../util/log.js'
 import { recordedFor, pidOnPort } from '../proc.js'
+import { color as c } from '../util/color.js'
 import { t } from '../i18n.js'
 
 // 该服务的约定端口是否有进程在监听（按端口判，不受 shell/pnpm 让记录 pid 漂移的影响）
@@ -13,8 +14,8 @@ export function renderSlots(cfg: BayConfig): string {
   const slots = new Set<number>([...occ.keys(), ...Object.keys(labels).map(Number)])
   const lines: string[] = []
   for (const n of [...slots].sort((a, b) => a - b)) {
-    const svc = (occ.get(n) ?? []).map((o) => { const p = portOf(cfg.services[o.service].port, n); return `${o.service}@${p}${running(cfg, o.dir, p) ? ' ▸run' : ''}` })
-    lines.push(`slot ${n}  ${labels[String(n)] ?? t('(未命名)', '(unnamed)')}  [${svc.join(', ') || t('无 worktree', 'no worktree')}]`)
+    const svc = (occ.get(n) ?? []).map((o) => { const p = portOf(cfg.services[o.service].port, n); return `${o.service}@${p}${running(cfg, o.dir, p) ? c.green(' ▸run') : ''}` })
+    lines.push(`${c.dim('slot ' + n)}  ${c.bold(c.cyan(labels[String(n)] ?? t('(未命名)', '(unnamed)')))}  [${svc.join(', ') || c.dim(t('无 worktree', 'no worktree'))}]`)
   }
   return lines.join('\n') || t('(无槽位在用)', '(no slots in use)')
 }

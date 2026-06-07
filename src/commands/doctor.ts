@@ -3,13 +3,14 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { BayConfig, repoPath } from '../config.js'
 import { log, warn } from '../util/log.js'
+import { color as c } from '../util/color.js'
 import { t } from '../i18n.js'
 
 // 体检：git 是否可用、配置是否有效、各服务仓是否存在且是 git 仓。返回问题数。
 export function doctor(cfg: BayConfig): number {
   let problems = 0
-  const ok = (m: string) => log(`✓ ${m}`)
-  const bad = (m: string) => { warn(`✗ ${m}`); problems++ }
+  const ok = (m: string) => log(`${c.green('✓')} ${m}`)
+  const bad = (m: string) => { warn(`${c.red('✗')} ${m}`); problems++ }
 
   if (spawnSync('git', ['--version'], { encoding: 'utf8' }).status === 0) ok(t('git 可用', 'git available'))
   else bad(t('git 不可用（worktree 依赖 git，请先安装 git）', 'git not available (worktree needs git — install it first)'))
@@ -23,7 +24,7 @@ export function doctor(cfg: BayConfig): number {
     else ok(`${t('服务', 'service')} ${name} → ${repo}`)
   }
 
-  log(problems === 0 ? t('\n✓ 一切正常', '\n✓ all good') : t(`\n✗ 发现 ${problems} 个问题`, `\n✗ found ${problems} problem(s)`))
+  log(problems === 0 ? c.green(t('\n✓ 一切正常', '\n✓ all good')) : c.red(t(`\n✗ 发现 ${problems} 个问题`, `\n✗ found ${problems} problem(s)`)))
   return problems
 }
 export function doctorCommand(cfg: BayConfig): void { if (doctor(cfg) > 0) process.exit(1) }

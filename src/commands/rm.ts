@@ -7,6 +7,7 @@ import { runShellLive } from '../util/exec.js'
 import { withProgress } from '../util/progress.js'
 import { stopManaged } from '../proc.js'
 import { log, warn } from '../util/log.js'
+import { color as c } from '../util/color.js'
 import { t } from '../i18n.js'
 
 export function resolveRm(cfg: BayConfig, feature: string, service?: string): Occupant[] {
@@ -19,10 +20,10 @@ export async function rmCommand(cfg: BayConfig, feature: string, service: string
     const occs = resolveRm(cfg, feature, service)
     for (const o of occs) {
       const repo = repoPath(cfg, o.service); const branch = currentBranch(o.dir)
-      if (!force && (isDirty(o.dir) || hasUnpushed(repo, branch))) { warn(t(`${o.service}  ·  跳过：有未提交或未推送的改动。先提交/推送，或加 -f 强删（会丢改动）。`, `${o.service}  ·  skipped: uncommitted or unpushed changes. Commit/push first, or pass -f to force-remove (discards them).`)); continue }
-      log(t(`${o.service}  ·  拆除…`, `${o.service}  ·  tearing down…`))
+      if (!force && (isDirty(o.dir) || hasUnpushed(repo, branch))) { warn(c.yellow(t(`${o.service}  ·  跳过：有未提交或未推送的改动。先提交/推送，或加 -f 强删（会丢改动）。`, `${o.service}  ·  skipped: uncommitted or unpushed changes. Commit/push first, or pass -f to force-remove (discards them).`))); continue }
+      log(c.bold(c.cyan(o.service)) + c.dim(t('  ·  拆除…', '  ·  tearing down…')))
       const stopped = stopManaged(cfg.workspaceRoot, o.dir)   // 先停 dev server（释放对 worktree 文件的占用）
-      if (stopped) log(t(`  ✓ 已停止 dev server（pid ${stopped.pid}）`, `  ✓ stopped dev server (pid ${stopped.pid})`))
+      if (stopped) log(`  ${c.green('✓')} ` + t(`已停止 dev server（pid ${stopped.pid}）`, `stopped dev server (pid ${stopped.pid})`))
       const sp = cfg.services[o.service]
       if (sp.teardown) { const vars = buildVars(cfg, { cfg, service: o.service, sp, slot: o.slot, slug: o.slug, dir: o.dir, repo }); const cmd = renderTemplate(sp.teardown, vars); await runShellLive(cmd, { cwd: repo }, t(`teardown ${o.service}：${cmd}`, `teardown ${o.service}: ${cmd}`)) }
       await withProgress(t(`移除 ${o.service} 的 worktree`, `removing ${o.service} worktree`), () => removeWorktree(repo, o.dir, force))
@@ -31,7 +32,7 @@ export async function rmCommand(cfg: BayConfig, feature: string, service: string
     const slot = slotOfFeature(cfg, feature)!
     if (!service && (scanOccupancy(cfg).get(slot) ?? []).length === 0) {
       removeLabel(cfg, slot)
-      if (removed === 0) log(t(`✓ 释放空槽预约 "${feature}"（槽 ${slot}）`, `✓ released empty slot reservation "${feature}" (slot ${slot})`))
+      if (removed === 0) log(`${c.green('✓')} ` + t(`释放空槽预约 "${feature}"（槽 ${slot}）`, `released empty slot reservation "${feature}" (slot ${slot})`))
     }
   })
 }
