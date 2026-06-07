@@ -33,6 +33,8 @@ export async function addCommand(cfg: BayConfig, feature: string, service: strin
       await bringUp(ctx, resolvedBase, br)
     } catch (e) {
       const m = String((e as Error).message)
+      if (/not a valid branch name|cannot be used as a branch name/i.test(m))   // 分支名不合法（先于 base 判，二者都含 "not a valid"）
+        throw new Error(t(`分支名「${br}」不合法：git 分支名不能以 / 开头或结尾、不能含 // 或 ..。换一个，如 fix/log（去掉前导斜杠）。`, `invalid branch name "${br}": git branch names can't start/end with "/" or contain "//" or "..". Use e.g. fix/log (no leading slash).`))
       if (/invalid reference|unknown revision|ambiguous argument|not a valid|Not a valid object name/i.test(m))
         throw new Error(t(`基分支「${resolvedBase}」无效（该仓可能没有 origin 或对应主分支）。给 add 显式传 base，例如：worktree-bay add ${feature} ${service} ${br} HEAD`, `invalid base ref "${resolvedBase}" (this repo may have no origin or main branch). Pass an explicit base to add, e.g.: worktree-bay add ${feature} ${service} ${br} HEAD`))
       throw e
