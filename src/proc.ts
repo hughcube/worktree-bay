@@ -20,8 +20,13 @@ export function startDetached(ws: string, dir: string, service: string, slug: st
   const logDir = path.join(ws, '.worktree-bay', 'logs'); fs.mkdirSync(logDir, { recursive: true })
   const log = path.join(logDir, `${slug}-${service}.log`)
   const fd = fs.openSync(log, 'a')
-  // detached + unref：脱离本进程，CLI 退出后 dev server 继续跑；stdout/stderr 落日志文件。
-  const child = spawn(cmd, { cwd: dir, shell: true, detached: true, stdio: ['ignore', fd, fd], windowsHide: true })
+  // 后台启动、CLI 退出后仍存活、且不弹窗：
+  // - Windows：不要 detached（detached 会新开控制台窗口、且与 windowsHide 冲突）；用 windowsHide 抑制窗口，
+  //   子进程在父进程正常退出后不会被自动杀（Windows 默认不 kill-on-parent-exit），kill 时用 taskkill /T 杀进程树。
+  // - 类 Unix：detached 建新进程组，便于用 kill(-pid) 整组结束。
+  // 两边都把 stdout/stderr 落日志文件，并 unref 让本进程能直接退出。
+  const detached = process.platform !== 'win32'
+  const child = spawn(cmd, { cwd: dir, shell: true, detached, stdio: ['ignore', fd, fd], windowsHide: true })
   const pid = child.pid ?? -1
   child.unref()
   const rec: ProcRec = { dir, service, port, pid, cmd, log, startedAt: Date.now() }
