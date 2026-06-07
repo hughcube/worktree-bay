@@ -47,7 +47,7 @@ worktree-bay gc
 
 > 运行体随起随停（不动 worktree/代码）：`worktree-bay stop drill-fix` 停掉（docker 容器 + dev server 一起）、`start` 起回来、`restart` 重启。
 >
-> 更细的控制：`claim <feature>` 单独占槽、`add <feature> <service> [branch]` 单加一个服务（branch 可自定义，省略则用功能名）、`rm <feature> [service]` 拆单个服务。
+> 更细的控制：`claim <feature>` 单独占槽、`add <feature> <service> [branch]` 单加一个服务（branch 可自定义，省略则用功能名）、`down <feature> <service>` 只拆某个服务（省略服务则拆整功能）。
 
 ## 配置
 

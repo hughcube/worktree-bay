@@ -24,7 +24,7 @@ describe('mcp (lightweight stdio JSON-RPC)', () => {
     expect(TOOLS.find((t) => t.name === 'worktree_bay_gc')!.toArgs({ apply: true })).toEqual(['gc', '--apply'])
     expect(TOOLS.find((t) => t.name === 'worktree_bay_down')!.toArgs({ feature: 'f', force: true })).toEqual(['down', 'f', '-f'])   // 省略 services → 整功能 down
     expect(TOOLS.find((t) => t.name === 'worktree_bay_down')!.toArgs({ feature: 'f' })).toEqual(['down', 'f'])
-    expect(TOOLS.find((t) => t.name === 'worktree_bay_down')!.toArgs({ feature: 'f', services: ['api', 'lms'] })).toEqual(['rm', 'f', 'api', 'lms'])   // 给 services → rm 指定服务
+    expect(TOOLS.find((t) => t.name === 'worktree_bay_down')!.toArgs({ feature: 'f', services: ['api', 'lms'] })).toEqual(['down', 'f', 'api', 'lms'])   // 给 services → 只拆这些
     expect(TOOLS.find((t) => t.name === 'worktree_bay_ls')!.toArgs({})).toEqual(['ls', '--json'])
     expect(TOOLS.find((t) => t.name === 'worktree_bay_path')!.toArgs({ feature: 'f', service: 'api' })).toEqual(['path', 'f', 'api'])
     expect(TOOLS.find((t) => t.name === 'worktree_bay_doctor')!.toArgs({})).toEqual(['doctor'])

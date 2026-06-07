@@ -38,8 +38,7 @@ worktree-bay completion install   # 一键装 shell 补全（可选）
 | `worktree-bay start <feature> [services...]` | 启动功能的运行体（docker 容器 + node dev server 一起）；**省略 = 全部**，也可列多个。不动 worktree |
 | `worktree-bay stop <feature> [services...]` | 停止功能的运行体（停 docker + 杀 node dev server）；省略 = 全部，可列多个。保留 worktree |
 | `worktree-bay restart <feature> [services...]` | 重启运行体（停掉再起）；省略 = 全部，可列多个 |
-| `worktree-bay down <feature> [-f]` | 拆除**整个功能**（所有服务的 worktree）。`up` 的反操作 |
-| `worktree-bay rm <feature> <services...> [-f]` | 拆除指定的**一个或多个服务**（拆整功能用 `down`）。`add` 的反操作。默认查脏/未推保护，`-f` 强删 |
+| `worktree-bay down <feature> [services...]` | 拆除 worktree（停运行体 + teardown + 删 worktree）；**省略 services = 整功能**，也可列多个只拆这些。默认查脏/未推保护，`-f` 强删 |
 | `worktree-bay gc [--apply]` | 合并感知回收：默认 dry-run 只列建议，`--apply` 才删「已合并且干净」的 |
 | `worktree-bay completion <install\|bash\|zsh\|fish>` | `install` 一键装进 shell；或打印补全脚本 |
 | `worktree-bay mcp` | 启动 MCP 服务（stdio，轻量脚本，客户端按需 spawn），供 AI 调用 |
@@ -157,8 +156,8 @@ worktree-bay gc                        # 回收已合并的
 | ③ 在运行体里执行 | 跑命令 / 开 shell | — | `run` / `sh` | — |
 
 - `up`：建 worktree+infra（首次）并起运行体；**重入 = 恢复运行体**（docker 挂了重跑 `up` 能拉回来，等价 `start`）。
-- `start`/`stop`/`restart`：只管②运行体，省略 service = 整功能、带 service = 单个；不碰 worktree 与代码。
-- `down`(=`rm <feature>`) ↔ `up`（功能级）；`rm <feature> <service>` ↔ `add`（单服务级）。
+- 整套 runtime/teardown 命令统一为「一个动词 + `[services...]`（省略=全部）」：`start` / `stop` / `restart` / `down`。
+- `up`（创建，服务必填）↔ `down`（拆除，服务可省=整功能）。`add` 是「单服务 + 自定义分支/基点」的精细创建，其反操作 = `down <feature> <service>`。
 
 ## 工作原理要点
 
@@ -172,7 +171,7 @@ worktree-bay gc                        # 回收已合并的
 
 ## 给 AI（MCP）
 
-`worktree-bay mcp` 暴露工具：`worktree_bay_doctor / ls / up / claim / add / path / run / start / stop / restart / down / gc / init / skill`。`doctor` 列出全部服务（AI 借此得知服务名）；`ls` 以 JSON 返回（含各 worktree 绝对路径、`▸run`）；`path` 给某功能某服务的 worktree 目录；`start/stop/restart` 控制运行体（docker+node）；`down` 省略 service 拆整功能、带 service 只拆该服务。要写或修改 `worktree-bay.config.json`、或拿不准命令/配置细节时，调用 `worktree_bay_skill` 取本指南全文。
+`worktree-bay mcp` 暴露工具：`worktree_bay_doctor / ls / up / claim / add / path / run / start / stop / restart / down / gc / init / skill`。`doctor` 列出全部服务（AI 借此得知服务名）；`ls` 以 JSON 返回（含各 worktree 绝对路径、`▸run`）；`path` 给某功能某服务的 worktree 目录；`start/stop/restart` 控制运行体（docker+node）；`down` 省略 services 拆整功能、给 services 只拆这些。要写或修改 `worktree-bay.config.json`、或拿不准命令/配置细节时，调用 `worktree_bay_skill` 取本指南全文。
 
 ## 常见坑
 

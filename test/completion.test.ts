@@ -14,7 +14,11 @@ describe('completion', () => {
   it('add 第三参补 service', () => expect(complete(cfg, ['bay', 'add', 'drill'])).toEqual(expect.arrayContaining(['api', 'lms'])))
   it('up 第二参补 feature', () => expect(complete(cfg, ['bay', 'up'])).toContain('drill'))
   it('up 变长参补 service', () => { expect(complete(cfg, ['bay', 'up', 'drill'])).toEqual(expect.arrayContaining(['api', 'lms'])); expect(complete(cfg, ['bay', 'up', 'drill', 'api'])).toEqual(expect.arrayContaining(['api', 'lms'])) })
-  it('down 第二参补 feature', () => expect(complete(cfg, ['bay', 'down'])).toContain('drill'))
+  it('down 第二参补 feature、之后变长补 service', () => {
+    expect(complete(cfg, ['bay', 'down'])).toContain('drill')
+    expect(complete(cfg, ['bay', 'down', 'drill'])).toEqual(expect.arrayContaining(['api', 'lms']))
+    expect(complete(cfg, ['bay', 'down', 'drill', 'api'])).toEqual(expect.arrayContaining(['api', 'lms']))
+  })
   it('start/stop/restart 在子命令里且补 feature/service', () => {
     const subs = complete(cfg, ['bay']); for (const s of ['start', 'stop', 'restart']) expect(subs).toContain(s)
     expect(complete(cfg, ['bay', 'restart'])).toContain('drill')

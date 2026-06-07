@@ -67,7 +67,7 @@ export const TOOLS: Tool[] = [
     toArgs: (a) => ['restart', String(a.feature), ...((a.services as string[]) ?? [])] },
   { name: 'worktree_bay_down', description: '拆除 worktree：省略 services 拆整个功能（所有服务），给 services 只拆这些服务（默认查脏/未推保护，force=true 强删）',
     inputSchema: { type: 'object', properties: { feature: str, services: { type: 'array', items: str }, force: { type: 'boolean' } }, required: ['feature'] },
-    toArgs: (a) => { const s = (a.services as string[]) ?? []; const force = a.force ? ['-f'] : []; return s.length ? ['rm', String(a.feature), ...s, ...force] : ['down', String(a.feature), ...force] } },
+    toArgs: (a) => ['down', String(a.feature), ...((a.services as string[]) ?? []), ...(a.force ? ['-f'] : [])] },
   { name: 'worktree_bay_gc', description: '合并感知回收：默认 dry-run 只列建议，apply=true 才实际删除「已合并且干净」的功能',
     inputSchema: { type: 'object', properties: { apply: { type: 'boolean' } } },
     toArgs: (a) => ['gc', ...(a.apply ? ['--apply'] : [])] },
