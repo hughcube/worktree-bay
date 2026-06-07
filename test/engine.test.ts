@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mergeEnvText, resolveUpstreamBase, buildVars, bringUp, type AddCtx } from '../src/engine.js'
+import { mergeEnvText, writeEnvFiles, resolveUpstreamBase, buildVars, bringUp, type AddCtx } from '../src/engine.js'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -7,10 +7,28 @@ import { spawnSync } from 'node:child_process'
 
 describe('engine pure', () => {
   it('mergeEnvText 覆盖/追加/保留', () => { const o = mergeEnvText('A=1\nB=2\n', { A: '9', C: '3' }); expect(o).toContain('A=9'); expect(o).not.toContain('A=1'); expect(o).toContain('B=2'); expect(o).toContain('C=3') })
+  it('mergeEnvText 是不动点（已合并的再合并同值，内容不变）', () => { const once = mergeEnvText('A=1\n', { A: '9', C: '3' }); expect(mergeEnvText(once, { A: '9', C: '3' })).toBe(once) })
   it('resolveUpstreamBase：materialized→本槽端口；否则 fallback', () => {
     const cfg: any = { services: { api: { port: 6001 } } }
     expect(resolveUpstreamBase(cfg, 1, { service: 'api', fallback: 'http://localhost:6001' }, true)).toBe('http://localhost:6002')
     expect(resolveUpstreamBase(cfg, 1, { service: 'api', fallback: 'http://localhost:6001' }, false)).toBe('http://localhost:6001')
+  })
+})
+
+describe('writeEnvFiles 幂等（防 watcher 抖动）', () => {
+  it('首次写入；值未变则跳过、不刷新 mtime；值变则重写', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bayenv-'))
+    const spec = { '.env.local': { VITE_API: '{upstreamBase}' } }
+    expect(writeEnvFiles(dir, spec, { upstreamBase: 'http://localhost:6002' })).toEqual(['.env.local'])   // 首次写
+    const fp = path.join(dir, '.env.local')
+    expect(fs.readFileSync(fp, 'utf8')).toContain('VITE_API=http://localhost:6002')
+    const mtime1 = fs.statSync(fp).mtimeMs
+    await new Promise((r) => setTimeout(r, 20))
+    expect(writeEnvFiles(dir, spec, { upstreamBase: 'http://localhost:6002' })).toEqual([])              // 同值 → 跳过
+    expect(fs.statSync(fp).mtimeMs).toBe(mtime1)                                                          // mtime 未变（关键：不触发 watcher）
+    expect(writeEnvFiles(dir, spec, { upstreamBase: 'http://localhost:6009' })).toEqual(['.env.local'])  // 值变 → 重写
+    expect(fs.readFileSync(fp, 'utf8')).toContain('VITE_API=http://localhost:6009')
+    fs.rmSync(dir, { recursive: true, force: true })
   })
 })
 

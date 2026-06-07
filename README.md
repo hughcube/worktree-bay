@@ -48,6 +48,8 @@ worktree-bay gc
 > 运行体随起随停（不动 worktree/代码）：`worktree-bay stop drill-fix` 停掉（docker 容器 + dev server 一起）、`start` 起回来、`restart` 重启。
 >
 > 更细的控制：`claim <feature>` 单独占槽、`add <feature> <service> [branch]` 单加一个服务（branch 可自定义，省略则用功能名）、`down <feature> <service>` 只拆某个服务（省略服务则拆整功能）。
+>
+> dev server 起不来或报错？`worktree-bay logs <feature>`（`--tail N` 调行数、`--prev` 看上一轮）直接看日志尾部排障——日志每次启动滚动，当前文件只含本轮。
 
 ## 配置
 
@@ -132,7 +134,7 @@ worktree-bay completion install
 }
 ```
 
-> 服务在哪个工作区目录启动，就用哪个目录的 `worktree-bay.config.json`（cwd 自动向上查找，**无需写死路径**；也可设 `WORKTREE_BAY_CONFIG`）。暴露的工具：`worktree_bay_doctor / ls / up / claim / add / path / run / start / stop / restart / down / gc / init / skill`（`doctor` 列出全部服务名，`ls` JSON 返回各 worktree 路径与 `▸run`，`path` 给某功能某服务目录，`start/stop/restart` 控制运行体，`down` 可只拆单个服务，`skill` 取完整指南）。MCP 调用时自动以非交互模式运行（输出不含颜色/进度控制符）。
+> 服务在哪个工作区目录启动，就用哪个目录的 `worktree-bay.config.json`（cwd 自动向上查找，**无需写死路径**；也可设 `WORKTREE_BAY_CONFIG`）。暴露的工具：`worktree_bay_doctor / ls / up / claim / add / path / run / start / stop / restart / down / logs / gc / init / skill`（`doctor` 列出全部服务名，`ls` JSON 返回各 worktree 路径与 `▸run`，`path` 给某功能某服务目录，`start/stop/restart` 控制运行体，`down` 可只拆单个服务，`logs` 看 dev server 日志排障，`skill` 取完整指南）。MCP 调用时自动以非交互模式运行（输出不含颜色/进度控制符）。
 
 ## 许可证
 

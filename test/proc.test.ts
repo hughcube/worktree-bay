@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'
-import { startDetached, stopManaged, recordedFor, pidAlive, readProcs } from '../src/proc.js'
+import { startDetached, stopManaged, recordedFor, pidAlive, readProcs, logPath } from '../src/proc.js'
 
 let ws: string
 beforeEach(() => { ws = fs.mkdtempSync(path.join(os.tmpdir(), 'bayproc-')) })
@@ -42,6 +42,19 @@ describe('proc', () => {
     expect(recordedFor(ws, abs)?.pid).toBe(rec.pid)                      // 绝对形态查命中
     stopManaged(ws, 'svc/.worktrees/s1-x')                               // 相对形态也能停
     expect(recordedFor(ws, abs)).toBeUndefined()
+  })
+  it('logPath 单一来源（startDetached 写、logs 读同一路径）', () => {
+    expect(logPath(ws, 's1-x', 'web')).toBe(path.join(ws, '.worktree-bay', 'logs', 's1-x-web.log'))
+  })
+  it('startDetached 写启动头；下一轮启动把上一轮滚动到 .prev', async () => {
+    const dir = path.join(ws, 'wt-log'); fs.mkdirSync(dir)
+    const rec1 = startDetached(ws, dir, 'web', 's3-log', 39101, sleepCmd)
+    expect(fs.readFileSync(rec1.log, 'utf8')).toContain('worktree-bay start')     // 启动头标记本轮起点
+    expect(fs.existsSync(rec1.log + '.prev')).toBe(false)                          // 首轮无 .prev
+    await new Promise((r) => setTimeout(r, 100)); stopManaged(ws, dir)
+    const rec2 = startDetached(ws, dir, 'web', 's3-log', 39101, sleepCmd)
+    expect(fs.existsSync(rec2.log + '.prev')).toBe(true)                           // 上一轮被滚动保留
+    stopManaged(ws, dir)
   })
   it('账本按 dir 唯一；readProcs 可读端口', () => {
     const dir = path.join(ws, 'wt2'); fs.mkdirSync(dir)

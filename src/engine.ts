@@ -17,6 +17,19 @@ export function mergeEnvText(text: string, kv: Record<string, string>): string {
   for (const [k, v] of Object.entries(kv)) if (!seen.has(k)) { if (out.length && out[out.length - 1] === '') out.splice(out.length - 1, 0, `${k}=${v}`); else out.push(`${k}=${v}`) }
   return out.join('\n')
 }
+// 把 env 规格渲染并合并进 worktree 的 dotenv 文件。幂等：合并后内容与现有文件一致就【跳过写入】，
+// 避免无谓刷新 mtime 触发 dev server 的 .env 文件 watcher（如 vite）抖动重启——重跑 up/add（值已正确）很常见，
+// 运行中的前端被反复重启会偶发解析失败。返回实际写入的文件名（便于观测/测试）。
+export function writeEnvFiles(dir: string, env: Record<string, Record<string, string>> | undefined, vars: Record<string, string | number>): string[] {
+  const written: string[] = []
+  for (const [file, kv] of Object.entries(env ?? {})) {
+    const fp = path.join(dir, file); const exists = fs.existsSync(fp); const cur = exists ? fs.readFileSync(fp, 'utf8') : ''
+    const rendered: Record<string, string> = {}; for (const [k, v] of Object.entries(kv)) rendered[k] = renderTemplate(v, vars)
+    const next = mergeEnvText(cur, rendered)
+    if (!exists || next !== cur) { fs.writeFileSync(fp, next); written.push(file) }
+  }
+  return written
+}
 export function resolveUpstreamBase(cfg: BayConfig, slot: number, up: { service: string; fallback: string }, materialized: boolean): string {
   return materialized ? `http://localhost:${portOf(cfg.services[up.service].port, slot)}` : up.fallback
 }
@@ -46,11 +59,7 @@ export async function bringUp(ctx: AddCtx, base: string, branch: string): Promis
       if (fs.existsSync(a) && fs.existsSync(b) && fs.readFileSync(a, 'utf8') !== fs.readFileSync(b, 'utf8')) warn(t(`⚠ ${lock} 与主 checkout 不一致，拷来的依赖可能版本错位；建议把该服务的 copy 去掉、改用 setup 跑安装命令。`, `⚠ ${lock} differs from the main checkout; copied dependencies may be the wrong version. Consider dropping copy for this service and installing via setup instead.`))
     }
   }
-  for (const [file, kv] of Object.entries(sp.env ?? {})) {
-    const fp = path.join(dir, file); const cur = fs.existsSync(fp) ? fs.readFileSync(fp, 'utf8') : ''
-    const rendered: Record<string, string> = {}; for (const [k, v] of Object.entries(kv)) rendered[k] = renderTemplate(v, vars)
-    fs.writeFileSync(fp, mergeEnvText(cur, rendered))
-  }
+  writeEnvFiles(dir, sp.env, vars)
   if (sp.setup) {
     const cmd = renderTemplate(sp.setup, vars)
     const r = await runShellLive(cmd, { cwd: dir }, t(`setup：${cmd}`, `setup: ${cmd}`))

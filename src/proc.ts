@@ -20,6 +20,10 @@ export function setPid(ws: string, dir: string, pid: number): void { const recs 
 export function readLogTail(file: string, lines = 15): string {
   try { return fs.readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean).slice(-lines).join('\n') } catch { return '' }
 }
+// 某 worktree dev server 的日志路径（startDetached 写、logs 命令读，单一来源避免两处拼接漂移）。
+export function logPath(ws: string, slug: string, service: string): string {
+  return path.join(ws, '.worktree-bay', 'logs', `${slug}-${service}.log`)
+}
 
 // 找出监听某端口的进程 pid（shell/pnpm 等中间层会让记录的 pid 漂移，按端口查最可靠）。
 export function pidOnPort(port: number): number | undefined {
@@ -86,7 +90,12 @@ export function stopUnrecordedOnPort(ws: string, dir: string, port: number): Por
 
 export function startDetached(ws: string, dir: string, service: string, slug: string, port: number, cmd: string): ProcRec {
   const logDir = path.join(ws, '.worktree-bay', 'logs'); fs.mkdirSync(logDir, { recursive: true })
-  const log = path.join(logDir, `${slug}-${service}.log`)
+  const log = logPath(ws, slug, service)
+  // 每次启动滚动日志：上一轮留一份 .prev，当前日志只含本次运行，排障时不被跨会话的历史淹没。
+  // （fs.rename 跨平台覆盖已存在目标；失败也不阻断启动。）
+  try { if (fs.existsSync(log) && fs.statSync(log).size > 0) fs.renameSync(log, log + '.prev') } catch { /* 滚动失败忽略 */ }
+  // 启动头：标清「本次启动」的时间与命令，作为日志里这一轮运行的起点。
+  fs.writeFileSync(log, `===== worktree-bay start ${new Date().toISOString()} :: ${cmd} =====\n`)
   const fd = fs.openSync(log, 'a')
   // 后台启动、CLI 退出后仍存活、且不弹窗：
   // - Windows：不要 detached（detached 会新开控制台窗口、且与 windowsHide 冲突）；用 windowsHide 抑制窗口，
