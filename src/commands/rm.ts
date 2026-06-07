@@ -10,19 +10,23 @@ import { log, warn } from '../util/log.js'
 import { color as c } from '../util/color.js'
 import { t } from '../i18n.js'
 
-// services 为空 = 整功能；否则只这些服务（顺带校验服务名确实在该功能里）
+// services 为空 = 整功能；否则只这些服务。幂等：未占槽 / 指定服务当前未占用 → 返回空（no-op），
+// 仅对「未知服务名」（typo，根本不在 config）报错。
 export function resolveRm(cfg: BayConfig, feature: string, services: string[] = []): Occupant[] {
-  const slot = slotOfFeature(cfg, feature); if (slot === undefined) throw new Error(t(`功能「${feature}」未占槽，无需拆除。用 \`worktree-bay ls\` 看在用的功能。`, `feature "${feature}" has no slot — nothing to tear down. See \`worktree-bay ls\`.`))
+  for (const s of services) if (!cfg.services[s]) throw new Error(t(`未知服务「${s}」。运行 \`worktree-bay doctor\` 查看配置里有哪些服务。`, `unknown service "${s}". Run \`worktree-bay doctor\` to see configured services.`))
+  const slot = slotOfFeature(cfg, feature)
+  if (slot === undefined) return []
   const all = scanOccupancy(cfg).get(slot) ?? []
-  if (!services.length) return all
-  for (const s of services) if (!all.some((o) => o.service === s)) throw new Error(t(`服务「${s}」不在功能「${feature}」里。用 \`worktree-bay ls\` 看已起的服务。`, `service "${s}" is not in feature "${feature}". See \`worktree-bay ls\`.`))
-  return all.filter((o) => services.includes(o.service))
+  return services.length ? all.filter((o) => services.includes(o.service)) : all
 }
 export async function rmCommand(cfg: BayConfig, feature: string, services: string[], force: boolean) {
   await withLock(cfg.workspaceRoot, async () => {
+    const slot = slotOfFeature(cfg, feature)
+    if (slot === undefined) { log(c.green('✓') + ' ' + t(`功能「${feature}」未占槽，无需拆除（已是目标状态）`, `feature "${feature}" has no slot — nothing to tear down (already in target state)`)); return }
     let removed = 0
     const wholeFeature = services.length === 0
     const occs = resolveRm(cfg, feature, services)
+    if (occs.length === 0) { log(c.dim(t('指定服务当前未占用，无需拆除（已是目标状态）', 'those services aren\'t occupied — nothing to tear down (already in target state)'))); return }
     for (const o of occs) {
       const repo = repoPath(cfg, o.service); const branch = currentBranch(o.dir)
       if (!force && (isDirty(o.dir) || hasUnpushed(repo, branch))) { warn(c.yellow(t(`${o.service}  ·  跳过：有未提交或未推送的改动。先提交/推送，或加 -f 强删（会丢改动）。`, `${o.service}  ·  skipped: uncommitted or unpushed changes. Commit/push first, or pass -f to force-remove (discards them).`))); continue }
@@ -34,7 +38,6 @@ export async function rmCommand(cfg: BayConfig, feature: string, services: strin
       await withProgress(t(`移除 ${o.service} 的 worktree`, `removing ${o.service} worktree`), () => removeWorktree(repo, o.dir, force))
       removed++
     }
-    const slot = slotOfFeature(cfg, feature)!
     if (wholeFeature && (scanOccupancy(cfg).get(slot) ?? []).length === 0) {
       removeLabel(cfg, slot)
       if (removed === 0) log(`${c.green('✓')} ` + t(`释放空槽预约 "${feature}"（槽 ${slot}）`, `released empty slot reservation "${feature}" (slot ${slot})`))

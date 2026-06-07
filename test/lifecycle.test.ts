@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'
 import type { BayConfig } from '../src/config.js'
 import { claim } from '../src/slots.js'
-import { stopCommand, startCommand } from '../src/commands/lifecycle.js'
+import { stopCommand, startCommand, restartCommand } from '../src/commands/lifecycle.js'
 
 let ws: string; let cfg: BayConfig; let dir: string
 beforeEach(() => {
@@ -21,6 +21,14 @@ describe('lifecycle (docker 风格 infra：setup/stop 钩子)', () => {
     expect(fs.existsSync(path.join(dir, 'stop-ran'))).toBe(true)
     await startCommand(cfg, 'feat')
     expect(fs.existsSync(path.join(dir, 'setup-ran'))).toBe(true)
+  })
+  it('幂等：未占槽的功能 stop/start/restart 均 no-op、不报错', async () => {
+    await expect(stopCommand(cfg, 'never-claimed')).resolves.toBeUndefined()
+    await expect(startCommand(cfg, 'never-claimed')).resolves.toBeUndefined()
+    await expect(restartCommand(cfg, 'never-claimed')).resolves.toBeUndefined()
+  })
+  it('未知服务名（typo）仍报错', async () => {
+    await expect(stopCommand(cfg, 'feat', ['nope'])).rejects.toThrow(/未知服务|unknown service/)
   })
   it('既无 start 也无 stop 的服务被跳过，不报错', async () => {
     const c2: BayConfig = { workspaceRoot: ws, maxSlots: 9, configDir: ws, services: { svc: { port: 8001 } } }

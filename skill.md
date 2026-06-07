@@ -161,6 +161,7 @@ worktree-bay gc                        # 回收已合并的
 
 ## 工作原理要点
 
+- **全命令幂等**：`up / down / start / stop / restart` 重复执行都收敛到同一目标态、不报错——`up` 重入＝复用 worktree + 恢复运行体；`start`/`stop` 已在目标态则跳过/仍逐服务给状态；`down` 对未占槽或已拆的服务是友好 no-op。仅「未知服务名」（typo，不在 config）才报错。
 - **占用真相 = 文件系统**：扫各服务 `.worktrees/s<N>-*`；`.worktree-bay-slots.json` 只是「功能名→槽号」标签账本（预约）。
 - **dev server 托管**：`start` 进程后台 detach 启动、日志落 `.worktree-bay/logs/`、按端口追踪真实 pid；`ls` 行首 `●` 标在跑（绿）/未跑（灰）；`stop`/`down` 按端口可靠停。
 - **运行状态判断 = 端口**：`ls`/`start`/`stop` 判「在不在跑」全用 `pidOnPort`（netstat/lsof，与 ls 同源），不用 connect 探测（docker 发布端口两者会不一致）、也不只看 pid 账本（dir 形态会漂移、docker 无账本记录）。`start` 端口已在监听就跳过、不再误报「恢复」。
