@@ -6,6 +6,7 @@ import { scanOccupancy } from './slots.js'
 import { addWorktree } from './git.js'
 import { runShell, run, spliceArgv, isTTY } from './util/exec.js'
 import { warn, log } from './util/log.js'
+import { withProgress } from './util/progress.js'
 import { t } from './i18n.js'
 
 export function mergeEnvText(text: string, kv: Record<string, string>): string {
@@ -32,10 +33,13 @@ export function buildVars(cfg: BayConfig, ctx: Omit<AddCtx, 'vars'>): Record<str
 export async function bringUp(ctx: AddCtx, base: string, branch: string): Promise<void> {
   const { sp, dir, repo, vars } = ctx
   if (!(await isPortFree(Number(vars.port)))) throw new Error(t(`端口 ${vars.port} 已被占用。先停掉占用它的进程，或用 \`worktree-bay gc\`/\`worktree-bay down <功能>\` 释放其它槽后重试。`, `port ${vars.port} is already in use. Stop whatever is using it, or free a slot with \`worktree-bay gc\`/\`worktree-bay down <feature>\`, then retry.`))
+  log(t(`  → 创建 worktree（分支 ${branch}）…`, `  → creating worktree (branch ${branch})…`))
   addWorktree(repo, dir, branch, base)
   for (const rel of sp.copy ?? []) {
-    // dereference: vendor/node_modules 含符号链接，Windows 下原样复制符号链接会失败，跟随并拷目标内容
-    fs.cpSync(path.join(repo, rel), path.join(dir, rel), { recursive: true, dereference: true })
+    // dereference: vendor/node_modules 含符号链接，Windows 下原样复制符号链接会失败，跟随并拷目标内容。
+    // 用异步 cp + spinner，让大目录（如 vendor ~238MB）拷贝时不像卡死。
+    await withProgress(t(`从主 checkout 拷贝 ${rel}（首次较慢）`, `copying ${rel} from main checkout (first time is slow)`), () =>
+      fs.promises.cp(path.join(repo, rel), path.join(dir, rel), { recursive: true, dereference: true }))
     for (const lock of ['composer.lock', 'pnpm-lock.yaml', 'package-lock.json']) {
       const a = path.join(repo, lock), b = path.join(dir, lock)
       if (fs.existsSync(a) && fs.existsSync(b) && fs.readFileSync(a, 'utf8') !== fs.readFileSync(b, 'utf8')) warn(t(`⚠ ${lock} 与主 checkout 不一致，拷来的依赖可能版本错位；建议把该服务的 copy 去掉、改用 setup 跑安装命令。`, `⚠ ${lock} differs from the main checkout; copied dependencies may be the wrong version. Consider dropping copy for this service and installing via setup instead.`))
@@ -46,7 +50,11 @@ export async function bringUp(ctx: AddCtx, base: string, branch: string): Promis
     const rendered: Record<string, string> = {}; for (const [k, v] of Object.entries(kv)) rendered[k] = renderTemplate(v, vars)
     fs.writeFileSync(fp, mergeEnvText(cur, rendered))
   }
-  if (sp.setup) { const r = runShell(renderTemplate(sp.setup, vars), { cwd: dir }); if (r.code !== 0) throw new Error(t(`setup 命令失败（退出码 ${r.code}）。查看上面的输出排查；修好后可重跑 add（已建的 worktree 会被复用，不会重复创建）。`, `setup command failed (exit code ${r.code}). Check the output above; after fixing, re-run add (the existing worktree is reused, not recreated).`)) }
+  if (sp.setup) {
+    const cmd = renderTemplate(sp.setup, vars)
+    log(t(`  → 执行 setup：${cmd}`, `  → running setup: ${cmd}`))
+    const r = runShell(cmd, { cwd: dir }); if (r.code !== 0) throw new Error(t(`setup 命令失败（退出码 ${r.code}）。查看上面的输出排查；修好后可重跑 add（已建的 worktree 会被复用，不会重复创建）。`, `setup command failed (exit code ${r.code}). Check the output above; after fixing, re-run add (the existing worktree is reused, not recreated).`))
+  }
   if (sp.start) log(t(`  启动: (cd ${dir} && ${renderTemplate(sp.start, vars)})`, `  start: (cd ${dir} && ${renderTemplate(sp.start, vars)})`))
 }
 

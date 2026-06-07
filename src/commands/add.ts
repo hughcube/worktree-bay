@@ -40,5 +40,8 @@ export async function addCommand(cfg: BayConfig, feature: string, service: strin
 
 // up: 一条命令为功能批量起多个服务（claim 自动 + 各服务默认分支）
 export async function upCommand(cfg: BayConfig, feature: string, services: string[], base?: string) {
-  for (const service of services) await addCommand(cfg, feature, service, undefined, base)
+  for (let i = 0; i < services.length; i++) {
+    log(t(`▶ [${i + 1}/${services.length}] 起 ${services[i]} …`, `▶ [${i + 1}/${services.length}] bringing up ${services[i]} …`))
+    await addCommand(cfg, feature, services[i], undefined, base)
+  }
 }
