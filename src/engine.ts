@@ -8,7 +8,7 @@ import { runShellLive, run, spliceArgv, isTTY } from './util/exec.js'
 import { warn, log } from './util/log.js'
 import { withProgress } from './util/progress.js'
 import { color as cc } from './util/color.js'
-import { startDetached, recordedFor, pidAlive, setPid, pidOnPort, readLogTail, stopManaged } from './proc.js'
+import { startDetached, recordedFor, pidAlive, setPid, pidOnPort, readLogTail, stopManaged, stopUnrecordedOnPort } from './proc.js'
 import { t } from './i18n.js'
 
 export function mergeEnvText(text: string, kv: Record<string, string>): string {
@@ -66,7 +66,7 @@ export async function ensureStarted(ctx: AddCtx): Promise<void> {
   const ws = cfg.workspaceRoot, port = Number(vars.port)
   const rec = recordedFor(ws, dir)
   if (rec && pidAlive(rec.pid)) { log(cc.dim(t(`  • ${service} dev server 已在跑（pid ${rec.pid}，端口 ${port}）`, `  • ${service} dev server already running (pid ${rec.pid}, port ${port})`))); return }
-  if (await portInUse(port)) { log(cc.dim(t(`  • 端口 ${port} 已在监听，视为 ${service} dev server 在跑，跳过启动`, `  • port ${port} already listening; treating ${service} dev server as up, skip`))); return }
+  if (pidOnPort(port)) { log(cc.dim(t(`  • 端口 ${port} 已在监听，视为 ${service} dev server 在跑，跳过启动`, `  • port ${port} already listening; treating ${service} dev server as up, skip`))); return }
   const cmd = renderTemplate(sp.start, vars)
   const r = startDetached(ws, dir, service, slug, port, cmd)
   // 等它在【约定端口】上监听（最多 ~25s，给 vite 冷启动 + 偶发 restart 留足时间）。
@@ -93,31 +93,41 @@ async function waitForListen(port: number, ms: number): Promise<boolean> {
 }
 
 // 「运行体」= docker 容器(infra) + node dev server。up 重入 / start / restart 共用，统一边界。
-// 恢复运行体：有 stop 钩子的 infra 服务重跑 setup（docker compose up -d 幂等恢复）+ 起 managed dev server。
+// 恢复运行体：有 stop 钩子的 infra 服务在端口没监听时才重跑 setup（docker compose up -d）+ 起 managed dev server。
+// 「是否在跑」一律按端口实判，与 ls 同源（pidOnPort/netstat，而非 connect 探测——docker 发布端口两者会不一致，
+// 导致 ls 显示在跑、start 却误判没跑去「恢复」）。端口已在监听就视为在跑、跳过，不再无脑重跑 setup。
 export async function ensureRuntime(ctx: AddCtx): Promise<void> {
   const { sp, dir, service, vars } = ctx
-  if (sp.stop && sp.setup) { const cmd = renderTemplate(sp.setup, vars); await runShellLive(cmd, { cwd: dir }, t(`恢复 ${service}：${cmd}`, `resume ${service}: ${cmd}`)) }
+  if (sp.stop && sp.setup) {
+    const port = Number(vars.port)
+    if (pidOnPort(port)) log(cc.dim(t(`  • ${service} 已在跑（端口 ${port} 在监听），跳过恢复`, `  • ${service} already up (port ${port} listening), skip resume`)))
+    else { const cmd = renderTemplate(sp.setup, vars); await runShellLive(cmd, { cwd: dir }, t(`恢复 ${service}：${cmd}`, `resume ${service}: ${cmd}`)) }
+  }
   await ensureStarted(ctx)
 }
 // 停止运行体：杀 managed dev server + 跑 stop 钩子（docker compose stop）。不动 worktree。
-// 始终给每个服务输出一行状态——哪怕本就没在跑（否则只剩一个裸服务名，看不出结果）。
-// 用端口实判：docker 容器停了端口即释放、dev server 同理，比「有没有 managed 记录」更准，
-// 据此给出诚实状态（本就空闲 / 外部未托管 / 未在运行），不让一个绿勾掩盖「其实没东西在跑」。
+// 始终给每个服务输出一行状态。「是否在跑」用 pidOnPort（与 ls 同源），不用 connect 探测。
+// 严格判定：只停「本目录 + 本端口 + 本进程」——dev server 凭账本（dir 已规范化匹配）认本进程，
+// 不去按端口盲杀（端口可能被无关进程占）；没有账本记录就如实报告、不动它。
 export async function stopRuntime(ctx: AddCtx): Promise<void> {
   const { cfg, sp, dir, service, vars } = ctx
   const port = Number(vars.port)
-  const wasUp = await portInUse(port)
+  const onPort = pidOnPort(port)   // 停之前先记下端口真相（stopManaged 可能把它杀掉）
   const stopped = stopManaged(cfg.workspaceRoot, dir)
-  if (stopped) log(`  ${cc.green('✓')} ` + t(`已停止 dev server（pid ${stopped.pid}）`, `stopped dev server (pid ${stopped.pid})`))
+  if (stopped) log(`  ${cc.green('✓')} ` + t(`已停止 dev server（pid ${stopped.pid}，端口 ${stopped.port}）`, `stopped dev server (pid ${stopped.pid}, port ${stopped.port})`))
   if (sp.stop) {
     // stop 钩子始终跑（docker compose stop 幂等，且能收掉 app 端口没监听、但 mysql/redis 等边车还在的情况）。
     const cmd = renderTemplate(sp.stop, vars)
     await runShellLive(cmd, { cwd: dir }, t(`停 ${service}：${cmd}`, `stop ${service}: ${cmd}`))
-    if (!wasUp) log(`  ${cc.dim('•')} ` + t(`（端口 ${port} 此前空闲，${service} 实际并未在对外服务）`, `(port ${port} was idle; ${service} wasn't actually serving)`))
+    if (!onPort) log(`  ${cc.dim('•')} ` + t(`（端口 ${port} 此前空闲，${service} 实际并未在对外服务）`, `(port ${port} was idle; ${service} wasn't actually serving)`))
   }
   if (!stopped && !sp.stop) {
-    if (wasUp) log(`  ${cc.yellow('•')} ` + t(`端口 ${port} 仍被占用（外部启动、未托管），请手动停止`, `port ${port} in use (external, unmanaged); stop manually`))
-    else log(`  ${cc.dim('•')} ` + t('未在运行', 'not running'))
+    if (!onPort) { log(`  ${cc.dim('•')} ` + t('未在运行', 'not running')); return }
+    // 无账本记录：校验后才杀（cwd==本目录 或 命令行含本端口），确证不了就不动
+    const r = stopUnrecordedOnPort(cfg.workspaceRoot, dir, port)
+    if (r.confirmed) log(`  ${cc.green('✓')} ` + t(`已停止（端口 ${port} 上 pid ${r.pid}，经${r.how === 'cwd' ? '工作目录' : '命令行'}确认属本 worktree）`, `stopped (pid ${r.pid} on port ${port}, confirmed as this worktree by ${r.how})`))
+    else if (r.reason === 'cwd-mismatch') log(`  ${cc.yellow('•')} ` + t(`端口 ${port} 被 pid ${r.pid} 占用，但其工作目录非本 worktree（${r.cwd}），未停`, `port ${port} held by pid ${r.pid}, but its cwd isn't this worktree (${r.cwd}); left running`))
+    else log(`  ${cc.yellow('•')} ` + t(`端口 ${port} 被 pid ${r.pid} 占用，无账本记录且无法确认是本服务本进程，未自动停止`, `port ${port} held by pid ${r.pid}, no record and can't confirm it's this service; left running`))
   }
 }
 

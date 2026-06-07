@@ -163,7 +163,8 @@ worktree-bay gc                        # 回收已合并的
 
 - **占用真相 = 文件系统**：扫各服务 `.worktrees/s<N>-*`；`.worktree-bay-slots.json` 只是「功能名→槽号」标签账本（预约）。
 - **dev server 托管**：`start` 进程后台 detach 启动、日志落 `.worktree-bay/logs/`、按端口追踪真实 pid；`ls` 行首 `●` 标在跑（绿）/未跑（灰）；`stop`/`down` 按端口可靠停。
-- **运行状态判断 = 端口**：`ls` 的 `running`、`stop` 的「是否真在跑」一律按约定端口是否被监听判（覆盖 docker / 托管 dev server / 外部手起三类），不依赖 pid 账本（dir 形态会漂移、docker 无账本记录）。`stop` 对每个服务都给状态：已停 / 端口空闲（docker 钩子仍幂等跑一遍）/ 外部未托管需手动停。
+- **运行状态判断 = 端口**：`ls`/`start`/`stop` 判「在不在跑」全用 `pidOnPort`（netstat/lsof，与 ls 同源），不用 connect 探测（docker 发布端口两者会不一致）、也不只看 pid 账本（dir 形态会漂移、docker 无账本记录）。`start` 端口已在监听就跳过、不再误报「恢复」。
+- **stop 严格停「本目录+本端口+本进程」**：① 优先用启动账本（dir 已规范化匹配：相对/绝对/大小写都认）；② 账本缺失时**校验后才杀**——Linux/macOS 比对进程 `cwd` 是否为本 worktree，Windows 取不到 cwd 则核对命令行含 `--port <本端口>`（端口按槽唯一，等价确证）；都确证不了就**不动它**并如实报告（绝不凭端口盲杀）。每个服务都有状态行：已停 / 端口空闲 / 无法确认未停。
 - **并发安全**：`claim/add/up/rm/down/gc` 全程持工作区原子锁。
 - **前端自接后端**：前端有 `upstream` 且同槽该上游服务的 worktree 已建，则 `{upstreamBase}` = 本槽上游端口；否则用 `fallback`。所以**联调时先 `up`/`add` 后端，再起前端**。
 - **合并感知回收**：`gc` 先 `git fetch`，用 `merge-base --is-ancestor` 判断是否并入主分支；**只在「已合并 + 工作区干净 + 无未推」时才自动删**，判不准一律保守不删、只标记。

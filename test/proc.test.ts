@@ -27,6 +27,22 @@ describe('proc', () => {
     expect(recordedFor(ws, dir)).toBeUndefined()         // 账本已移除
     expect(await deadWithin(rec.pid, 3000)).toBe(true)    // 进程已被杀
   })
+  it('dir 规范化：账本存相对、按绝对查也命中（修复 console 被误判为外部进程的根因）', () => {
+    const abs = path.join(ws, 'console', '.worktrees', 's1-mtest'); fs.mkdirSync(abs, { recursive: true })
+    fs.mkdirSync(path.join(ws, '.worktree-bay'), { recursive: true })
+    // 模拟历史/相对形态账本（停止侧给的是绝对路径，旧代码字符串直比会漏）
+    fs.writeFileSync(path.join(ws, '.worktree-bay', 'processes.json'),
+      JSON.stringify([{ dir: 'console/.worktrees/s1-mtest', service: 'console', port: 6022, pid: 999999, cmd: 'x', log: 'x', startedAt: 1 }]))
+    expect(recordedFor(ws, abs)?.port).toBe(6022)
+  })
+  it('dir 规范化：相对/绝对两种形态都能匹配同一 worktree', () => {
+    const abs = path.join(ws, 'svc', '.worktrees', 's1-x'); fs.mkdirSync(abs, { recursive: true })
+    const rec = startDetached(ws, abs, 'svc', 's1-x', 6033, sleepCmd)
+    expect(recordedFor(ws, 'svc/.worktrees/s1-x')?.pid).toBe(rec.pid)   // 相对形态查命中
+    expect(recordedFor(ws, abs)?.pid).toBe(rec.pid)                      // 绝对形态查命中
+    stopManaged(ws, 'svc/.worktrees/s1-x')                               // 相对形态也能停
+    expect(recordedFor(ws, abs)).toBeUndefined()
+  })
   it('账本按 dir 唯一；readProcs 可读端口', () => {
     const dir = path.join(ws, 'wt2'); fs.mkdirSync(dir)
     startDetached(ws, dir, 'api', 's2-y', 7002, sleepCmd)
