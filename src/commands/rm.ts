@@ -26,7 +26,8 @@ export async function rmCommand(cfg: BayConfig, feature: string, services: strin
     let removed = 0
     const wholeFeature = services.length === 0
     const occs = resolveRm(cfg, feature, services)
-    if (occs.length === 0) { log(c.dim(t('指定服务当前未占用，无需拆除（已是目标状态）', 'those services aren\'t occupied — nothing to tear down (already in target state)'))); return }
+    // 指定了服务但没占用 → no-op。整功能（未指定服务）即使无 worktree 也要继续，去释放空槽预约。
+    if (occs.length === 0 && !wholeFeature) { log(c.dim(t('指定服务当前未占用，无需拆除（已是目标状态）', 'those services aren\'t occupied — nothing to tear down (already in target state)'))); return }
     for (const o of occs) {
       const repo = repoPath(cfg, o.service); const branch = currentBranch(o.dir)
       if (!force && (isDirty(o.dir) || hasUnpushed(repo, branch))) { warn(c.yellow(t(`${o.service}  ·  跳过：有未提交或未推送的改动。先提交/推送，或加 -f 强删（会丢改动）。`, `${o.service}  ·  skipped: uncommitted or unpushed changes. Commit/push first, or pass -f to force-remove (discards them).`))); continue }
